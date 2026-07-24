@@ -9,7 +9,7 @@ import {
   fetchWithdrawalsApi,
   reviewWithdrawalApi,
 } from '../lib/api';
-import { ShieldCheck, Key, Mail, CheckCircle, XCircle, Plus, Sparkles, X, Image as ImageIcon, Wallet } from 'lucide-react';
+import { ShieldCheck, Key, Mail, CheckCircle, XCircle, Plus, Sparkles, X, Image as ImageIcon, Wallet, Database, Copy, Check } from 'lucide-react';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -19,7 +19,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<'settings' | 'submissions' | 'withdrawals' | 'add_task'>('withdrawals');
+  const [activeTab, setActiveTab] = useState<'settings' | 'submissions' | 'withdrawals' | 'add_task' | 'sql_schema'>('withdrawals');
 
   // Form states
   const [imgbbKey, setImgbbKey] = useState('');
@@ -38,6 +38,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [taskRequiresProof, setTaskRequiresProof] = useState(true);
 
   const [message, setMessage] = useState<string | null>(null);
+  const [sqlCopied, setSqlCopied] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -79,7 +80,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       setTimeout(() => setMessage(null), 3000);
     }
   };
-
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,12 +128,97 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     }
   };
 
+  const sqlCode = `-- SQL Schema for XN Reward / NXB Application (PostgreSQL & Supabase Compatible)
+
+CREATE TABLE IF NOT EXISTS public.users (
+  id VARCHAR(100) PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) UNIQUE NOT NULL,
+  password TEXT DEFAULT '',
+  role VARCHAR(20) DEFAULT 'user',
+  balance NUMERIC(15, 2) DEFAULT 0,
+  energy INT DEFAULT 1000,
+  max_energy INT DEFAULT 1000,
+  energy_level INT DEFAULT 1,
+  hit_level INT DEFAULT 1,
+  hit_damage NUMERIC(10, 2) DEFAULT 0.5,
+  subject_level INT DEFAULT 1,
+  subject_hp NUMERIC(15, 2) DEFAULT 100,
+  subject_max_hp NUMERIC(15, 2) DEFAULT 100,
+  referral_code VARCHAR(50) UNIQUE,
+  referred_by VARCHAR(100),
+  device_id VARCHAR(100),
+  device_name VARCHAR(150),
+  last_check_in_date VARCHAR(20),
+  check_in_streak INT DEFAULT 0,
+  last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.tasks (
+  id VARCHAR(100) PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  reward NUMERIC(15, 2) DEFAULT 100,
+  type VARCHAR(20) DEFAULT 'one_time',
+  category VARCHAR(50) DEFAULT 'social',
+  action_url TEXT,
+  requires_proof BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public.task_submissions (
+  id VARCHAR(100) PRIMARY KEY,
+  task_id VARCHAR(100) REFERENCES public.tasks(id) ON DELETE CASCADE,
+  user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
+  user_name VARCHAR(150),
+  user_email VARCHAR(150),
+  proof_image_url TEXT,
+  status VARCHAR(20) DEFAULT 'pending',
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS public.withdrawal_records (
+  id VARCHAR(100) PRIMARY KEY,
+  user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
+  user_name VARCHAR(150),
+  user_email VARCHAR(150),
+  taka_amount NUMERIC(15, 2) NOT NULL,
+  coins_amount NUMERIC(15, 2) NOT NULL,
+  payment_method VARCHAR(50) NOT NULL,
+  account_number VARCHAR(50) NOT NULL,
+  status VARCHAR(20) DEFAULT 'pending',
+  requested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  processed_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS public.referrals (
+  id VARCHAR(100) PRIMARY KEY,
+  referrer_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
+  referred_user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
+  referred_user_name VARCHAR(150),
+  referred_user_email VARCHAR(150),
+  referred_device_id VARCHAR(100),
+  referred_device_name VARCHAR(150),
+  is_first_referral BOOLEAN DEFAULT FALSE,
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  verified_at TIMESTAMP WITH TIME ZONE
+);`;
+
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(sqlCode);
+    setSqlCopied(true);
+    setTimeout(() => setSqlCopied(false), 2000);
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
       <div className="bg-[#211511] border border-[#4d352b] rounded-3xl p-5 w-full max-w-lg text-amber-50 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-amber-400 hover:text-white"
+          className="absolute top-4 right-4 text-amber-400 hover:text-white cursor-pointer"
         >
           <X className="w-6 h-6" />
         </button>
@@ -144,18 +229,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1.5 bg-[#170d0a] p-1.5 rounded-2xl border border-[#3b271f]">
+        <div className="flex items-center gap-1 bg-[#170d0a] p-1.5 rounded-2xl border border-[#3b271f] overflow-x-auto">
           <button
             onClick={() => setActiveTab('withdrawals')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-xl ${
+            className={`py-1.5 px-2 text-xs font-bold rounded-xl shrink-0 ${
               activeTab === 'withdrawals' ? 'bg-amber-500 text-black font-black' : 'text-amber-200/60'
             }`}
           >
-            Request Panel ({withdrawals.filter(w => w.status === 'pending').length})
+            Requests ({withdrawals.filter(w => w.status === 'pending').length})
           </button>
           <button
             onClick={() => setActiveTab('submissions')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-xl ${
+            className={`py-1.5 px-2 text-xs font-bold rounded-xl shrink-0 ${
               activeTab === 'submissions' ? 'bg-amber-500 text-black' : 'text-amber-200/60'
             }`}
           >
@@ -163,7 +248,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           </button>
           <button
             onClick={() => setActiveTab('add_task')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-xl ${
+            className={`py-1.5 px-2 text-xs font-bold rounded-xl shrink-0 ${
               activeTab === 'add_task' ? 'bg-amber-500 text-black' : 'text-amber-200/60'
             }`}
           >
@@ -171,11 +256,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-xl ${
+            className={`py-1.5 px-2 text-xs font-bold rounded-xl shrink-0 ${
               activeTab === 'settings' ? 'bg-amber-500 text-black' : 'text-amber-200/60'
             }`}
           >
             Settings
+          </button>
+          <button
+            onClick={() => setActiveTab('sql_schema')}
+            className={`py-1.5 px-2 text-xs font-bold rounded-xl shrink-0 ${
+              activeTab === 'sql_schema' ? 'bg-amber-500 text-black' : 'text-amber-200/60'
+            }`}
+          >
+            SQL Script
           </button>
         </div>
 
@@ -217,13 +310,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleReviewWithdrawal(req.id, 'rejected')}
-                        className="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-3 py-1 rounded-xl font-bold flex items-center gap-1 hover:bg-rose-500/30"
+                        className="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-3 py-1 rounded-xl font-bold flex items-center gap-1 hover:bg-rose-500/30 cursor-pointer"
                       >
                         <XCircle className="w-3.5 h-3.5" /> Reject
                       </button>
                       <button
                         onClick={() => handleReviewWithdrawal(req.id, 'approved')}
-                        className="bg-emerald-500 text-black px-4 py-1 rounded-xl font-extrabold flex items-center gap-1 hover:bg-emerald-400 shadow-md"
+                        className="bg-emerald-500 text-black px-4 py-1 rounded-xl font-extrabold flex items-center gap-1 hover:bg-emerald-400 shadow-md cursor-pointer"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve & Pay
                       </button>
@@ -234,7 +327,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             )}
           </div>
         )}
-
 
         {/* Tab 1: Proof Submissions */}
         {activeTab === 'submissions' && (
@@ -265,13 +357,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                   <div className="flex items-center justify-end gap-2 mt-1">
                     <button
                       onClick={() => handleReviewSubmission(sub.id, 'rejected')}
-                      className="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-rose-500/30"
+                      className="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-rose-500/30 cursor-pointer"
                     >
                       <XCircle className="w-4 h-4" /> Reject
                     </button>
                     <button
                       onClick={() => handleReviewSubmission(sub.id, 'approved')}
-                      className="bg-emerald-500 text-black px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-emerald-400"
+                      className="bg-emerald-500 text-black px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 hover:bg-emerald-400 cursor-pointer"
                     >
                       <CheckCircle className="w-4 h-4" /> Approve & Credit
                     </button>
@@ -359,21 +451,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
             <button
               type="submit"
-              className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold py-3 rounded-2xl shadow-lg mt-2 hover:from-amber-400 hover:to-orange-400"
+              className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold py-3 rounded-2xl shadow-lg mt-2 hover:from-amber-400 hover:to-orange-400 cursor-pointer"
             >
               Publish New Task
             </button>
           </form>
         )}
 
-        {/* Tab 3: API Keys & SMTP Config */}
+        {/* Tab 3: API Keys & Settings */}
         {activeTab === 'settings' && (
           <form onSubmit={handleSaveSettings} className="flex flex-col gap-3 my-2 text-xs">
             {/* ImgBB Key */}
             <div className="bg-[#180e0b] p-3 rounded-2xl border border-[#3d2820]">
               <label className="font-bold text-amber-300 flex items-center gap-1.5 mb-1">
                 <ImageIcon className="w-4 h-4 text-amber-400" />
-                <span>ImgBB API Key (Task Proof Image Host)</span>
+                <span>ImgBB API Key (Task Proof Image Upload Host)</span>
               </label>
               <input
                 type="text"
@@ -382,6 +474,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                 placeholder="Enter ImgBB API key..."
                 className="w-full bg-[#110907] border border-[#311f18] rounded-xl p-2 text-amber-100 font-mono text-xs"
               />
+              <p className="text-[10px] text-amber-300/60 mt-1">
+                Obtain your free API key at <a href="https://api.imgbb.com/" target="_blank" rel="noreferrer" className="text-amber-400 underline">api.imgbb.com</a> to enable direct image hosting.
+              </p>
             </div>
 
             {/* Brevo SMTP Key */}
@@ -424,13 +519,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
             <button
               type="submit"
-              className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold py-3 rounded-2xl shadow-lg mt-2 hover:from-amber-400 hover:to-orange-400"
+              className="bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold py-3 rounded-2xl shadow-lg mt-2 hover:from-amber-400 hover:to-orange-400 cursor-pointer"
             >
-              Save Admin API & SMTP Configuration
+              Save Admin API & Settings Configuration
             </button>
           </form>
+        )}
+
+        {/* Tab 4: SQL Database Schema Script */}
+        {activeTab === 'sql_schema' && (
+          <div className="flex flex-col gap-3 my-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                <Database className="w-4 h-4 text-amber-400" />
+                <span>PostgreSQL / Supabase DDL Schema Script</span>
+              </span>
+              <button
+                onClick={handleCopySql}
+                className="bg-amber-500 text-black font-bold px-3 py-1 rounded-xl flex items-center gap-1 text-xs hover:bg-amber-400 cursor-pointer"
+              >
+                {sqlCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{sqlCopied ? 'Copied SQL' : 'Copy SQL Script'}</span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-amber-300/70">
+              You can run these SQL statements directly in your PostgreSQL or Supabase SQL Editor to establish all tables:
+            </p>
+
+            <pre className="bg-[#100806] p-3 rounded-2xl border border-[#332018] text-emerald-400 font-mono text-[10px] max-h-64 overflow-y-auto whitespace-pre-wrap">
+              {sqlCode}
+            </pre>
+          </div>
         )}
       </div>
     </div>
   );
 };
+

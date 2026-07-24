@@ -18,6 +18,8 @@ export interface User {
   deviceName?: string;
   lastActive: string; // ISO timestamp
   createdAt: string;
+  lastCheckInDate?: string; // YYYY-MM-DD
+  checkInStreak?: number;
 }
 
 export interface Task {

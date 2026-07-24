@@ -160,22 +160,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
                 </div>
               </div>
 
-              <div>
-                <label className="font-bold text-amber-300 block mb-1 flex justify-between">
-                  <span>Gmail Address</span>
-                  <span className="text-[10px] text-amber-400 font-normal">Only @gmail.com</span>
-                </label>
+              {/* Beautiful Gmail Input Section */}
+              <div className="bg-gradient-to-br from-[#1e130f] to-[#170c09] p-3 rounded-2xl border border-amber-500/30 shadow-inner">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="font-extrabold text-amber-200 text-xs flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Official Gmail Address</span>
+                  </label>
+                  <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full font-mono font-bold border border-red-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping" />
+                    Only @gmail.com
+                  </span>
+                </div>
+
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-amber-400/80 absolute left-3 top-3" />
+                  <div className="absolute left-3 top-2.5 w-5 h-5 rounded-lg bg-gradient-to-tr from-rose-500 via-amber-500 to-emerald-500 p-[1px] flex items-center justify-center shadow-md">
+                    <div className="w-full h-full bg-[#180e0b] rounded-[7px] flex items-center justify-center">
+                      <Mail className="w-3 h-3 text-amber-400" />
+                    </div>
+                  </div>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    placeholder="user@gmail.com"
-                    className="w-full bg-[#180e0b] border border-[#3e2a22] rounded-xl pl-9 pr-3 py-2.5 text-amber-100 focus:outline-none focus:border-amber-500 font-mono"
+                    placeholder="your.real.name@gmail.com"
+                    className="w-full bg-[#140b08] border border-[#483228] rounded-xl pl-10 pr-3 py-2.5 text-amber-100 text-xs font-mono focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/30 transition-all placeholder:text-amber-200/30"
                   />
                 </div>
+
+                {email && email.toLowerCase().endsWith('@gmail.com') ? (
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-emerald-400 font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Valid Gmail address detected! Ready for OTP.</span>
+                  </div>
+                ) : email ? (
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-amber-400/80">
+                    <span>Must end with <strong className="font-mono text-amber-300">@gmail.com</strong></span>
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -252,17 +275,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
           )
         ) : (
           <form onSubmit={handleLogin} className="flex flex-col gap-3 text-xs">
-            <div>
-              <label className="font-bold text-amber-300 block mb-1">Gmail Address</label>
+            <div className="bg-gradient-to-br from-[#1e130f] to-[#170c09] p-3 rounded-2xl border border-amber-500/30 shadow-inner">
+              <label className="font-extrabold text-amber-200 text-xs flex items-center gap-1.5 mb-1.5">
+                <Mail className="w-3.5 h-3.5 text-amber-400" />
+                <span>Registered Gmail Address</span>
+              </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-amber-400/80 absolute left-3 top-3" />
+                <div className="absolute left-3 top-2.5 w-5 h-5 rounded-lg bg-gradient-to-tr from-rose-500 via-amber-500 to-emerald-500 p-[1px] flex items-center justify-center shadow-md">
+                  <div className="w-full h-full bg-[#180e0b] rounded-[7px] flex items-center justify-center">
+                    <Mail className="w-3 h-3 text-amber-400" />
+                  </div>
+                </div>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="user@gmail.com"
-                  className="w-full bg-[#180e0b] border border-[#3e2a22] rounded-xl pl-9 pr-3 py-2.5 text-amber-100 focus:outline-none focus:border-amber-500 font-mono"
+                  placeholder="your.real.name@gmail.com"
+                  className="w-full bg-[#140b08] border border-[#483228] rounded-xl pl-10 pr-3 py-2.5 text-amber-100 text-xs font-mono focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/30 transition-all placeholder:text-amber-200/30"
                 />
               </div>
             </div>

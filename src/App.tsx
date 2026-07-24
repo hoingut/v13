@@ -5,6 +5,8 @@ import { Header } from './components/Header';
 import { Navbar, TabType } from './components/Navbar';
 import { AirdropTapGame } from './components/AirdropTapGame';
 import { TaskList } from './components/TaskList';
+import { HistoryView } from './components/HistoryView';
+import { AccountView } from './components/AccountView';
 import { LeaderboardView } from './components/LeaderboardView';
 import { UpgradesView } from './components/UpgradesView';
 import { ReferralView } from './components/ReferralView';
@@ -14,12 +16,11 @@ import { WithdrawModal } from './components/WithdrawModal';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('game');
+  const [activeTab, setActiveTab] = useState<TabType>('airdrop');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [urlRefCode, setUrlRefCode] = useState<string>('');
-
 
   // Extract ?ref= Referral code from URL if present
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function App() {
     userRef.current = user;
   }, [user]);
 
-  // Periodic 30-Second Auto Sync to send user data and progress to backend database
+  // Periodic 30-Second Auto Sync
   useEffect(() => {
     const syncInterval = setInterval(async () => {
       const currentUser = userRef.current;
@@ -62,7 +63,7 @@ export default function App() {
           console.error('Periodic 30s auto sync error:', err);
         }
       }
-    }, 30000); // 30 seconds
+    }, 30000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && userRef.current && userRef.current.id) {
@@ -88,6 +89,23 @@ export default function App() {
     setShowAuthModal(false);
   };
 
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('nxb_user_id');
+  };
+
+  const handleTabChange = (tab: TabType) => {
+    if (tab === 'withdraw') {
+      if (!user) {
+        setShowAuthModal(true);
+      } else {
+        setShowWithdrawModal(true);
+      }
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#1c1310] via-[#160d0a] to-[#110806] text-amber-50 font-sans relative overflow-x-hidden">
       {/* Background ambient lighting glow */}
@@ -95,17 +113,19 @@ export default function App() {
 
       {/* Main Container Constraints for Mobile Telegram Mini-App UI */}
       <div className="max-w-md mx-auto min-h-screen flex flex-col justify-between relative z-10 shadow-2xl bg-[#170e0b]/60 border-x border-[#38261e]/40">
-        {/* Header */}
+        {/* Header with Top-Left Toggle Menu */}
         <Header
           user={user}
           onOpenAuth={() => setShowAuthModal(true)}
           onOpenAdmin={() => setShowAdminModal(true)}
           onOpenWithdraw={() => setShowWithdrawModal(true)}
+          onSelectTab={handleTabChange}
+          onLogout={handleLogout}
         />
 
-        {/* Dynamic Body Tabs */}
+        {/* Dynamic Body Views */}
         <main className="flex-1">
-          {activeTab === 'game' && (
+          {(activeTab === 'airdrop' || activeTab === 'game') && (
             <AirdropTapGame
               user={user}
               onUpdateUser={handleUserUpdate}
@@ -119,6 +139,23 @@ export default function App() {
               user={user}
               onUpdateUser={handleUserUpdate}
               onOpenAuth={() => setShowAuthModal(true)}
+            />
+          )}
+
+          {activeTab === 'history' && (
+            <HistoryView
+              user={user}
+              onOpenAuth={() => setShowAuthModal(true)}
+            />
+          )}
+
+          {activeTab === 'account' && (
+            <AccountView
+              user={user}
+              onOpenAuth={() => setShowAuthModal(true)}
+              onOpenWithdraw={() => setShowWithdrawModal(true)}
+              onOpenAdmin={() => setShowAdminModal(true)}
+              onLogout={handleLogout}
             />
           )}
 
@@ -140,10 +177,10 @@ export default function App() {
           )}
         </main>
 
-        {/* Bottom Tab Navbar */}
+        {/* Bottom Navigation Bar */}
         <Navbar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleTabChange}
         />
       </div>
 

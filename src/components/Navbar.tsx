@@ -1,7 +1,7 @@
 import React from 'react';
-import { Flag, Trophy, Users, Zap, Gamepad2 } from 'lucide-react';
+import { CheckSquare, History, Wallet, User as UserIcon } from 'lucide-react';
 
-export type TabType = 'task' | 'top' | 'game' | 'upgrades' | 'friends';
+export type TabType = 'task' | 'history' | 'airdrop' | 'withdraw' | 'account' | 'top' | 'upgrades' | 'friends';
 
 interface NavbarProps {
   activeTab: TabType;
@@ -12,16 +12,16 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, pendingTasksCount = 0 }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 max-w-md mx-auto px-4 pb-4 pt-2 bg-gradient-to-t from-[#140c0a] via-[#140c0a]/90 to-transparent pointer-events-none">
-      <nav className="pointer-events-auto bg-[#241814]/90 backdrop-blur-xl border border-[#443027]/70 rounded-3xl px-3 py-2 flex items-center justify-between shadow-2xl shadow-black/80">
-        {/* Task Tab */}
+      <nav className="pointer-events-auto bg-[#241814]/90 backdrop-blur-xl border border-[#443027]/70 rounded-3xl px-2 py-2 flex items-center justify-between shadow-2xl shadow-black/80">
+        {/* 1. Task Tab */}
         <button
           onClick={() => setActiveTab('task')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all relative ${
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition-all relative ${
             activeTab === 'task' ? 'text-amber-400 font-bold scale-105' : 'text-amber-200/50 hover:text-amber-200'
           }`}
         >
           <div className="relative">
-            <Flag className="w-5 h-5" />
+            <CheckSquare className="w-5 h-5" />
             {pendingTasksCount > 0 && (
               <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
                 {pendingTasksCount}
@@ -31,53 +31,53 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, pending
           <span className="text-[10px]">Task</span>
         </button>
 
-        {/* Top Leaderboard Tab */}
+        {/* 2. History Tab */}
         <button
-          onClick={() => setActiveTab('top')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all ${
-            activeTab === 'top' ? 'text-amber-400 font-bold scale-105' : 'text-amber-200/50 hover:text-amber-200'
+          onClick={() => setActiveTab('history')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition-all ${
+            activeTab === 'history' ? 'text-amber-400 font-bold scale-105' : 'text-amber-200/50 hover:text-amber-200'
           }`}
         >
-          <Trophy className="w-5 h-5" />
-          <span className="text-[10px]">Top</span>
+          <History className="w-5 h-5" />
+          <span className="text-[10px]">History</span>
         </button>
 
-        {/* Center HedHog Button */}
+        {/* 3. Center AirDrop Button */}
         <button
-          onClick={() => setActiveTab('game')}
+          onClick={() => setActiveTab('airdrop')}
           className="relative -top-3 group flex flex-col items-center"
         >
           <div
-            className={`w-16 h-12 rounded-2xl flex items-center justify-center font-black text-xs tracking-wider shadow-xl transition-all border transform active:scale-95 ${
-              activeTab === 'game'
+            className={`w-16 h-12 rounded-2xl flex items-center justify-center font-black text-[11px] tracking-wider shadow-xl transition-all border transform active:scale-95 ${
+              activeTab === 'airdrop'
                 ? 'bg-gradient-to-b from-amber-400 via-orange-500 to-amber-600 text-white border-amber-300 shadow-orange-500/50 scale-105 ring-2 ring-orange-400/40'
                 : 'bg-gradient-to-b from-[#3a2720] to-[#251712] text-amber-200 border-[#5a3f34] hover:border-amber-500/50'
             }`}
           >
-            <span>HedHog</span>
+            <span>AirDrop</span>
           </div>
         </button>
 
-        {/* Upgrades Tab */}
+        {/* 4. Withdrawal Tab */}
         <button
-          onClick={() => setActiveTab('upgrades')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all ${
-            activeTab === 'upgrades' ? 'text-amber-400 font-bold scale-105' : 'text-amber-200/50 hover:text-amber-200'
+          onClick={() => setActiveTab('withdraw')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition-all ${
+            activeTab === 'withdraw' ? 'text-amber-400 font-bold scale-105' : 'text-amber-200/50 hover:text-amber-200'
           }`}
         >
-          <Zap className="w-5 h-5" />
-          <span className="text-[10px]">Boost</span>
+          <Wallet className="w-5 h-5" />
+          <span className="text-[10px]">Withdrawal</span>
         </button>
 
-        {/* Friends / Referral Tab */}
+        {/* 5. Account Tab */}
         <button
-          onClick={() => setActiveTab('friends')}
-          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all ${
-            activeTab === 'friends' ? 'text-amber-400 font-bold scale-105' : 'text-amber-200/50 hover:text-amber-200'
+          onClick={() => setActiveTab('account')}
+          className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition-all ${
+            activeTab === 'account' ? 'text-amber-400 font-bold scale-105' : 'text-amber-200/50 hover:text-amber-200'
           }`}
         >
-          <Users className="w-5 h-5" />
-          <span className="text-[10px]">Friends</span>
+          <UserIcon className="w-5 h-5" />
+          <span className="text-[10px]">Account</span>
         </button>
       </nav>
     </div>

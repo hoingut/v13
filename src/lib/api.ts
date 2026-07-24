@@ -193,3 +193,12 @@ export async function createAdminTaskApi(taskData: any) {
   });
   return res.json();
 }
+
+export async function claimDailyCheckInApi(userId: string) {
+  const res = await fetch('/api/checkin/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId }),
+  });
+  return res.json();
+}

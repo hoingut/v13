@@ -415,6 +415,39 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'User with this Gmail already exists. Please log in.' });
   }
 
+  // 1 Account Per Device Restriction Rule
+  if (deviceId && deviceId.trim() !== '') {
+    let deviceAlreadyUsed = false;
+    for (const u of mockUsers.values()) {
+      if (u.deviceId === deviceId && u.email !== cleanEmail) {
+        deviceAlreadyUsed = true;
+        break;
+      }
+    }
+
+    if (!deviceAlreadyUsed) {
+      try {
+        const { data: devUsers } = await supabase
+          .from('users')
+          .select('id, email')
+          .eq('device_id', deviceId);
+        if (devUsers && devUsers.length > 0) {
+          if (devUsers.some((u: any) => u.email !== cleanEmail)) {
+            deviceAlreadyUsed = true;
+          }
+        }
+      } catch (err) {
+        console.error('Supabase check device_id error:', err);
+      }
+    }
+
+    if (deviceAlreadyUsed) {
+      return res.status(400).json({
+        error: 'একটি ডিভাইস থেকে শুধুমাত্র ১টি অ্যাকাউন্ট তৈরি করা যাবে! আপনার এই ডিভাইসে ইতিমধ্যে একটি অ্যাকাউন্ট রয়েছে।'
+      });
+    }
+  }
+
   // Referral Anti-Fraud Check
   let referredByUserId: string | undefined = undefined;
   if (referralCode) {
@@ -735,6 +768,74 @@ app.post('/api/game/tap', async (req, res) => {
     subjectLevelUp,
     newSubjectLevel: user.subjectLevel,
     newSubjectMaxHp: user.subjectMaxHp,
+    user,
+  });
+});
+
+// Daily Check-In Claim Route
+const DAILY_CHECKIN_REWARDS = [
+  { day: 1, reward: 500 },
+  { day: 2, reward: 1000 },
+  { day: 3, reward: 2500 },
+  { day: 4, reward: 5000 },
+  { day: 5, reward: 10000 },
+  { day: 6, reward: 15000 },
+  { day: 7, reward: 25000, bonusEnergy: 100 },
+];
+
+app.post('/api/checkin/claim', async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  const user = await getUserById(userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+  if (user.lastCheckInDate === todayStr) {
+    return res.status(400).json({
+      error: 'আজকের দৈনিক বোনাস ইতিমধ্যে দাবি করা হয়েছে! আগামীকাল আবার আসুন।'
+    });
+  }
+
+  // Calculate streak
+  let newStreak = 1;
+  if (user.lastCheckInDate) {
+    const lastDate = new Date(user.lastCheckInDate);
+    const currentDate = new Date(todayStr);
+    const diffTime = Math.abs(currentDate.getTime() - lastDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      newStreak = ((user.checkInStreak || 0) % 7) + 1;
+    } else if (diffDays === 0) {
+      newStreak = user.checkInStreak || 1;
+    } else {
+      newStreak = 1; // streak broken
+    }
+  }
+
+  const rewardObj = DAILY_CHECKIN_REWARDS.find(r => r.day === newStreak) || DAILY_CHECKIN_REWARDS[0];
+
+  user.balance += rewardObj.reward;
+  if (rewardObj.bonusEnergy) {
+    user.energy = Math.min(user.maxEnergy, user.energy + rewardObj.bonusEnergy);
+  }
+  user.lastCheckInDate = todayStr;
+  user.checkInStreak = newStreak;
+  user.lastActive = new Date().toISOString();
+
+  await saveUserToSupabase(user);
+
+  res.json({
+    success: true,
+    message: `অভিনন্দন! আপনি Day ${newStreak} এর বোনাস +${rewardObj.reward.toLocaleString()} Coins পেয়েছেন! 🎉`,
+    rewardCoins: rewardObj.reward,
+    streak: newStreak,
     user,
   });
 });
