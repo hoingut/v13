@@ -1,0 +1,6 @@
+{
+  "name": "XN Reward",
+  "description": "Telegram-style XN Reward ($NXB) Tap-to-Earn Airdrop WebApp with Tap Game, Energy Upgrades, Proof Tasks, Referral Anti-Fraud, and Admin Panel",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
