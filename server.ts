@@ -3,7 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import { SystemSettings, User, Task, TaskSubmission, ReferralRecord } from './src/types';
+import { SystemSettings, User, Task, TaskSubmission, ReferralRecord } from './src/types.js';
 
 dotenv.config();
 
