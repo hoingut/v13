@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
-import { tapApi } from '../lib/api';
+import { syncUserApi } from '../lib/api';
 import confetti from 'canvas-confetti';
 import { Zap, ShieldAlert, Sparkles, Flame, Clock } from 'lucide-react';
 
@@ -28,6 +28,7 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
   const [isTapping, setIsTapping] = useState(false);
   const [rechargeTimeLeft, setRechargeTimeLeft] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 6-hour energy recharge calculation countdown display
   useEffect(() => {
@@ -97,36 +98,34 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
     updatedUser.balance += damage;
     updatedUser.subjectHp -= damage;
 
+    let isLevelUp = false;
     if (updatedUser.subjectHp <= 0) {
+      isLevelUp = true;
       updatedUser.subjectLevel += 1;
       updatedUser.subjectMaxHp = updatedUser.subjectLevel * 100;
       updatedUser.subjectHp = updatedUser.subjectMaxHp;
       // Trigger level up blast!
       confetti({
-        particleCount: 80,
-        spread: 70,
+        particleCount: 100,
+        spread: 80,
         origin: { y: 0.6 },
-        colors: ['#f59e0b', '#f97316', '#eab308'],
+        colors: ['#f59e0b', '#f97316', '#eab308', '#ffffff'],
       });
     }
 
     onUpdateUser(updatedUser);
 
-    // Sync backend
-    const res = await tapApi(user.id, 1);
-    if (res.success && res.user) {
-      onUpdateUser(res.user);
-      if (res.subjectLevelUp) {
-        confetti({
-          particleCount: 120,
-          spread: 90,
-          origin: { y: 0.6 },
-          colors: ['#f59e0b', '#f97316', '#eab308', '#ffffff'],
-        });
-      }
-    } else if (res.error) {
-      setErrorMessage(res.error);
-      setTimeout(() => setErrorMessage(null), 3000);
+    // Debounced database sync (sync 2s after tapping stops, or immediately if level up)
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+
+    if (isLevelUp) {
+      syncUserApi(updatedUser.id, updatedUser);
+    } else {
+      syncTimeoutRef.current = setTimeout(() => {
+        syncUserApi(updatedUser.id, updatedUser);
+      }, 2000);
     }
   };
 
@@ -190,7 +189,6 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
         {/* Tap Container Surface */}
         <div
           onClick={handleTap}
-          onTouchStart={handleTap}
           className={`relative w-64 h-64 rounded-full flex items-center justify-center transition-all duration-150 transform active:scale-95 ${
             isTapping ? 'scale-90 rotate-1 ring-4 ring-amber-400/60 shadow-orange-500/80' : 'hover:scale-105'
           }`}

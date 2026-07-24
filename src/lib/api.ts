@@ -65,6 +65,20 @@ export async function fetchUserApi(userId: string) {
   return res.json();
 }
 
+export async function syncUserApi(userId: string, userState: User) {
+  try {
+    const res = await fetch('/api/game/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, userState }),
+    });
+    return await res.json();
+  } catch (err) {
+    console.error('Auto sync error:', err);
+    return { success: false, error: 'Network error during auto sync' };
+  }
+}
+
 export async function tapApi(userId: string, tapsCount: number = 1): Promise<{ success: boolean; user?: User; coinsEarned?: number; subjectLevelUp?: boolean; error?: string }> {
   const res = await fetch('/api/game/tap', {
     method: 'POST',

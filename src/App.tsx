@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User } from './types';
-import { fetchUserApi } from './lib/api';
+import { fetchUserApi, syncUserApi } from './lib/api';
 import { Header } from './components/Header';
 import { Navbar, TabType } from './components/Navbar';
 import { AirdropTapGame } from './components/AirdropTapGame';
@@ -38,6 +38,40 @@ export default function App() {
         }
       });
     }
+  }, []);
+
+  const userRef = useRef<User | null>(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Periodic 30-Second Auto Sync to send user data and progress to backend database
+  useEffect(() => {
+    const syncInterval = setInterval(async () => {
+      const currentUser = userRef.current;
+      if (currentUser && currentUser.id) {
+        try {
+          const res = await syncUserApi(currentUser.id, currentUser);
+          if (res && res.success && res.user) {
+            setUser(prev => (prev ? { ...prev, energy: res.user.energy } : res.user));
+          }
+        } catch (err) {
+          console.error('Periodic 30s auto sync error:', err);
+        }
+      }
+    }, 30000); // 30 seconds
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && userRef.current && userRef.current.id) {
+        syncUserApi(userRef.current.id, userRef.current);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(syncInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleUserUpdate = (updatedUser: User) => {

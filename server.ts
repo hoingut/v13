@@ -206,6 +206,88 @@ async function uploadToImgBB(base64Image: string): Promise<string> {
   return base64Image;
 }
 
+// Helper: Get user by ID or Email with Supabase fallback
+async function getUserById(userIdOrEmail: string): Promise<User | null> {
+  if (!userIdOrEmail) return null;
+  const cleanStr = String(userIdOrEmail).toLowerCase().trim();
+
+  // 1. Memory lookup
+  let user = mockUsers.get(userIdOrEmail) || mockUsers.get(cleanStr);
+  if (user) return user;
+
+  // 2. Supabase lookup
+  try {
+    const { data: dbUser } = await supabase
+      .from('users')
+      .select('*')
+      .or(`id.eq.${userIdOrEmail},email.eq.${cleanStr},referral_code.eq.${userIdOrEmail}`)
+      .maybeSingle();
+
+    if (dbUser) {
+      user = {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        role: dbUser.role || 'user',
+        balance: Number(dbUser.balance) || 0,
+        energy: dbUser.energy || 1000,
+        maxEnergy: dbUser.max_energy || 1000,
+        energyLevel: dbUser.energy_level || 1,
+        hitLevel: dbUser.hit_level || 1,
+        hitDamage: Number(dbUser.hit_damage) || 0.5,
+        subjectLevel: dbUser.subject_level || 1,
+        subjectHp: Number(dbUser.subject_hp) || 100,
+        subjectMaxHp: Number(dbUser.subject_max_hp) || 100,
+        referralCode: dbUser.referral_code || '',
+        referredBy: dbUser.referred_by || undefined,
+        deviceId: dbUser.device_id || '',
+        deviceName: dbUser.device_name || '',
+        lastActive: dbUser.last_active || new Date().toISOString(),
+        createdAt: dbUser.created_at || new Date().toISOString(),
+      };
+      mockUsers.set(user.id, user);
+      mockUsers.set(user.email.toLowerCase(), user);
+      return user;
+    }
+  } catch (err) {
+    console.error('Supabase getUserById error:', err);
+  }
+
+  return null;
+}
+
+// Helper: Save/Update user in Supabase
+async function saveUserToSupabase(user: User): Promise<void> {
+  if (!user || !user.id) return;
+  try {
+    const { error } = await supabase.from('users').upsert({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      balance: user.balance,
+      energy: user.energy,
+      max_energy: user.maxEnergy,
+      energy_level: user.energyLevel,
+      hit_level: user.hitLevel,
+      hit_damage: user.hitDamage,
+      subject_level: user.subjectLevel,
+      subject_hp: user.subjectHp,
+      subject_max_hp: user.subjectMaxHp,
+      referral_code: user.referralCode,
+      referred_by: user.referredBy || null,
+      device_id: user.deviceId,
+      device_name: user.deviceName,
+      last_active: user.lastActive,
+    });
+    if (error) {
+      console.error('Supabase user upsert error:', error.message, error.details);
+    }
+  } catch (err) {
+    console.error('Supabase saveUserToSupabase error:', err);
+  }
+}
+
 // ---------------- API ROUTES ----------------
 
 // 1. Health check
@@ -516,45 +598,7 @@ app.post('/api/auth/login', async (req, res) => {
 // 5. Game: Synchronize / Fetch User State
 app.get('/api/game/user/:userId', async (req, res) => {
   const { userId } = req.params;
-  let user = mockUsers.get(userId);
-
-  if (!user) {
-    try {
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (dbUser) {
-        user = {
-          id: dbUser.id,
-          name: dbUser.name,
-          email: dbUser.email,
-          role: dbUser.role || 'user',
-          balance: Number(dbUser.balance) || 0,
-          energy: dbUser.energy || 1000,
-          maxEnergy: dbUser.max_energy || 1000,
-          energyLevel: dbUser.energy_level || 1,
-          hitLevel: dbUser.hit_level || 1,
-          hitDamage: Number(dbUser.hit_damage) || 0.5,
-          subjectLevel: dbUser.subject_level || 1,
-          subjectHp: Number(dbUser.subject_hp) || 100,
-          subjectMaxHp: Number(dbUser.subject_max_hp) || 100,
-          referralCode: dbUser.referral_code || '',
-          referredBy: dbUser.referred_by || undefined,
-          deviceId: dbUser.device_id || '',
-          deviceName: dbUser.device_name || '',
-          lastActive: dbUser.last_active || new Date().toISOString(),
-          createdAt: dbUser.created_at || new Date().toISOString(),
-        };
-        mockUsers.set(user.id, user);
-        mockUsers.set(user.email, user);
-      }
-    } catch (err) {
-      console.error('Supabase fetch game user error:', err);
-    }
-  }
+  const user = await getUserById(userId);
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
@@ -562,14 +606,70 @@ app.get('/api/game/user/:userId', async (req, res) => {
 
   user.energy = calculateRechargedEnergy(user);
   user.lastActive = new Date().toISOString();
+  await saveUserToSupabase(user);
 
   res.json({ success: true, user });
 });
 
+// 5.5 Game: Periodic 30-Second Auto Sync User State
+app.post('/api/game/sync', async (req, res) => {
+  const { userId, userState } = req.body;
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  const user = await getUserById(userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  if (userState) {
+    if (typeof userState.balance === 'number' && !isNaN(userState.balance)) {
+      user.balance = Math.max(user.balance, userState.balance);
+    }
+    if (typeof userState.energy === 'number' && !isNaN(userState.energy)) {
+      user.energy = userState.energy;
+    }
+    if (typeof userState.subjectHp === 'number' && !isNaN(userState.subjectHp)) {
+      user.subjectHp = userState.subjectHp;
+    }
+    if (typeof userState.subjectLevel === 'number' && !isNaN(userState.subjectLevel)) {
+      user.subjectLevel = Math.max(user.subjectLevel, userState.subjectLevel);
+    }
+    if (typeof userState.subjectMaxHp === 'number' && !isNaN(userState.subjectMaxHp)) {
+      user.subjectMaxHp = userState.subjectMaxHp;
+    }
+    if (typeof userState.energyLevel === 'number' && !isNaN(userState.energyLevel)) {
+      user.energyLevel = Math.max(user.energyLevel, userState.energyLevel);
+    }
+    if (typeof userState.hitLevel === 'number' && !isNaN(userState.hitLevel)) {
+      user.hitLevel = Math.max(user.hitLevel, userState.hitLevel);
+    }
+    if (typeof userState.hitDamage === 'number' && !isNaN(userState.hitDamage)) {
+      user.hitDamage = userState.hitDamage;
+    }
+    if (typeof userState.maxEnergy === 'number' && !isNaN(userState.maxEnergy)) {
+      user.maxEnergy = userState.maxEnergy;
+    }
+  }
+
+  user.energy = calculateRechargedEnergy(user);
+  user.lastActive = new Date().toISOString();
+
+  // Save in memory map
+  mockUsers.set(user.id, user);
+  if (user.email) mockUsers.set(user.email.toLowerCase(), user);
+
+  // Persist to Supabase Database
+  await saveUserToSupabase(user);
+
+  res.json({ success: true, message: 'Data synced successfully to database', user });
+});
+
 // 6. Game: Tap Action
-app.post('/api/game/tap', (req, res) => {
+app.post('/api/game/tap', async (req, res) => {
   const { userId, tapsCount = 1 } = req.body;
-  const user = mockUsers.get(userId);
+  const user = await getUserById(userId);
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
@@ -606,6 +706,9 @@ app.post('/api/game/tap', (req, res) => {
 
   user.lastActive = new Date().toISOString();
 
+  // Save changes to database
+  await saveUserToSupabase(user);
+
   res.json({
     success: true,
     tapsCount,
@@ -621,9 +724,9 @@ app.post('/api/game/tap', (req, res) => {
 });
 
 // 7. Game: Upgrades (Charge Box Level UP & Hit Damage Level UP)
-app.post('/api/game/upgrade', (req, res) => {
+app.post('/api/game/upgrade', async (req, res) => {
   const { userId, upgradeType } = req.body; // 'energy' or 'hit'
-  const user = mockUsers.get(userId);
+  const user = await getUserById(userId);
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
@@ -651,6 +754,8 @@ app.post('/api/game/upgrade', (req, res) => {
   }
 
   user.lastActive = new Date().toISOString();
+  await saveUserToSupabase(user);
+
   res.json({ success: true, user });
 });
 
@@ -662,7 +767,7 @@ app.get('/api/tasks', (req, res) => {
 // 9. Tasks: Submit proof
 app.post('/api/tasks/submit', async (req, res) => {
   const { taskId, userId, proofImageBase64 } = req.body;
-  const user = mockUsers.get(userId);
+  const user = await getUserById(userId);
   const task = mockTasks.find(t => t.id === taskId);
 
   if (!user || !task) {
@@ -691,6 +796,7 @@ app.post('/api/tasks/submit', async (req, res) => {
   }
 
   mockSubmissions.push(submission);
+  await saveUserToSupabase(user);
 
   res.json({
     success: true,
@@ -708,9 +814,9 @@ app.get('/api/tasks/my-submissions/:userId', (req, res) => {
 });
 
 // 11. Referrals: Get User Referrals & Status
-app.get('/api/referrals/my/:userId', (req, res) => {
+app.get('/api/referrals/my/:userId', async (req, res) => {
   const { userId } = req.params;
-  const user = mockUsers.get(userId);
+  const user = await getUserById(userId);
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
