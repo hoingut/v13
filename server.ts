@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import { SystemSettings, User, Task, TaskSubmission, ReferralRecord } from './src/types.js';
+import { SystemSettings, User, Task, TaskSubmission, ReferralRecord, WithdrawalRecord } from './src/types.js';
 
 dotenv.config();
 
@@ -71,12 +71,16 @@ const mockTasks: Task[] = [
 ];
 const mockSubmissions: TaskSubmission[] = [];
 const mockReferrals: ReferralRecord[] = [];
+const mockWithdrawals: WithdrawalRecord[] = [];
+
+// Admin Emails List
+const ADMIN_EMAILS = ['hello.alihosen@gmail.com', 'admin@gmail.com'];
 
 // Helper: Seed Default Admin User
 const adminUser: User = {
   id: 'usr_admin',
   name: 'NXB Admin',
-  email: 'admin@gmail.com',
+  email: 'hello.alihosen@gmail.com',
   role: 'admin',
   balance: 10000,
   energy: 1000,
@@ -95,6 +99,7 @@ const adminUser: User = {
 };
 mockUsers.set(adminUser.id, adminUser);
 mockUsers.set(adminUser.email, adminUser);
+mockUsers.set('admin@gmail.com', { ...adminUser, email: 'admin@gmail.com' });
 
 // Energy Auto Recharge calculation (6 hours full refuel = 21600 seconds)
 function calculateRechargedEnergy(user: User): number {
@@ -444,15 +449,15 @@ app.post('/api/auth/register', async (req, res) => {
     id: userId,
     name: name || 'XN Hunter',
     email: cleanEmail,
-    role: 'user',
-    balance: 50, // Welcome signup bonus
-    energy: 1000,
-    maxEnergy: 1000,
+    role: ADMIN_EMAILS.includes(cleanEmail) ? 'admin' : 'user',
+    balance: 100, // Joining bonus 100 Coin
+    energy: 200, // Default Charge: 200
+    maxEnergy: 200,
     energyLevel: 1,
     hitLevel: 1,
     hitDamage: 0.5,
     subjectLevel: 1,
-    subjectHp: 100,
+    subjectHp: 100, // Default Subject 1 HP: 100
     subjectMaxHp: 100,
     referralCode: userRefCode,
     referredBy: referredByUserId,
@@ -515,8 +520,8 @@ app.post('/api/auth/register', async (req, res) => {
       };
 
       if (isFirst) {
-        // Immediate 100 NXB reward for 1st referral
-        referrer.balance += 100;
+        // 10 Taka reward for referral (1k coins = 2 Taka => 5000 coins)
+        referrer.balance += 5000;
         refRecord.verifiedAt = new Date().toISOString();
       }
 
@@ -540,26 +545,32 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'Email is required' });
   }
 
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required' });
+  }
+
   const cleanEmail = email.toLowerCase().trim();
   let user = mockUsers.get(cleanEmail);
+  let dbUserPassword = '';
 
-  if (!user) {
-    try {
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', cleanEmail)
-        .maybeSingle();
+  try {
+    const { data: dbUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', cleanEmail)
+      .maybeSingle();
 
-      if (dbUser) {
+    if (dbUser) {
+      dbUserPassword = dbUser.password || '';
+      if (!user) {
         user = {
           id: dbUser.id,
           name: dbUser.name,
           email: dbUser.email,
-          role: dbUser.role || 'user',
+          role: ADMIN_EMAILS.includes(cleanEmail) ? 'admin' : (dbUser.role || 'user'),
           balance: Number(dbUser.balance) || 0,
-          energy: dbUser.energy || 1000,
-          maxEnergy: dbUser.max_energy || 1000,
+          energy: dbUser.energy || 200,
+          maxEnergy: dbUser.max_energy || 200,
           energyLevel: dbUser.energy_level || 1,
           hitLevel: dbUser.hit_level || 1,
           hitDamage: Number(dbUser.hit_damage) || 0.5,
@@ -576,13 +587,18 @@ app.post('/api/auth/login', async (req, res) => {
         mockUsers.set(user.id, user);
         mockUsers.set(cleanEmail, user);
       }
-    } catch (err) {
-      console.error('Supabase fetch login user error:', err);
     }
+  } catch (err) {
+    console.error('Supabase fetch login user error:', err);
   }
 
   if (!user) {
     return res.status(404).json({ error: 'No account found with this Gmail. Please sign up.' });
+  }
+
+  // Password verification check
+  if (dbUserPassword && dbUserPassword !== password) {
+    return res.status(401).json({ error: 'Incorrect password! Please check and try again.' });
   }
 
   user.energy = calculateRechargedEnergy(user);
@@ -845,8 +861,8 @@ app.get('/api/referrals/my/:userId', async (req, res) => {
         if (activeWithinLast10Hours || completedTaskAndHighBalance) {
           ref.status = 'verified';
           ref.verifiedAt = new Date().toISOString();
-          // Credit 150 NXB for verified subsequent referral
-          user.balance += 150;
+          // Credit 10 Taka (5000 Coins) for verified referral
+          user.balance += 5000;
         } else if (elapsedHours >= 12) {
           // If 12 hours passed without meeting conditions, mark failed
           ref.status = 'failed';
@@ -917,7 +933,9 @@ app.post('/api/admin/submissions/review', (req, res) => {
     const user = mockUsers.get(sub.userId);
     const task = mockTasks.find(t => t.id === sub.taskId);
     if (user && task) {
-      user.balance += task.reward;
+      // 1 Taka = 500 coins (1k coins = 2 Taka)
+      const rewardCoins = Math.round(task.reward * 500);
+      user.balance += rewardCoins;
     }
   }
 
@@ -942,6 +960,216 @@ app.post('/api/admin/tasks', (req, res) => {
 
   mockTasks.push(newTask);
   res.json({ success: true, task: newTask });
+});
+
+// 16. Withdrawal Endpoints
+app.post('/api/withdraw/request', async (req, res) => {
+  const { userId, paymentMethod, accountNumber, coinsAmount } = req.body;
+
+  if (!userId || !paymentMethod || !accountNumber || !coinsAmount) {
+    return res.status(400).json({ error: 'All fields are required!' });
+  }
+
+  const user = await getUserById(userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found!' });
+  }
+
+  // 1. Referral check: Must have at least 4 referrals
+  const userRefs = mockReferrals.filter(r => r.referrerId === user.id);
+  let totalRefs = userRefs.length;
+  if (totalRefs === 0) {
+    try {
+      const { data: dbRefs } = await supabase
+        .from('referrals')
+        .select('*')
+        .eq('referrer_id', user.id);
+      if (dbRefs) totalRefs = dbRefs.length;
+    } catch (err) {
+      console.error('Supabase fetch referrals count error:', err);
+    }
+  }
+
+  if (totalRefs < 4) {
+    return res.status(400).json({
+      error: `উইথড্র করতে সর্বনিম্ন ৪ জন রেফার লাগবে! (আপনার বর্তমান রেফার: ${totalRefs})`
+    });
+  }
+
+  // 2. Minimum coins check based on date
+  const targetDate = new Date('2026-08-15T00:00:00');
+  const isBeforeAug15 = new Date() < targetDate;
+  const minCoinsRequired = isBeforeAug15 ? 250000 : 100000;
+
+  if (coinsAmount < minCoinsRequired) {
+    const minText = isBeforeAug15 ? '২৫০k (250,000)' : '১০০k (100,000)';
+    return res.status(400).json({
+      error: `১৫ আগস্ট এর ${isBeforeAug15 ? 'আগে' : 'পর'} উইথড্র করতে সর্বনিম্ন ${minText} Coin লাগবে!`
+    });
+  }
+
+  // 3. User balance check
+  if (user.balance < coinsAmount) {
+    return res.status(400).json({
+      error: `আপনার অ্যাকাউন্টে পর্যাপ্ত Coin নেই! (বর্তমান ব্যালেন্স: ${user.balance.toLocaleString()} Coin)`
+    });
+  }
+
+  // Deduct coins from balance
+  user.balance -= coinsAmount;
+  mockUsers.set(user.id, user);
+  if (user.email) mockUsers.set(user.email.toLowerCase(), user);
+  await saveUserToSupabase(user);
+
+  // Rate: 1k coins = 2 Taka
+  const takaAmount = Math.floor((coinsAmount / 1000) * 2);
+
+  const withdrawalRecord: WithdrawalRecord = {
+    id: `wth_${Date.now()}`,
+    userId: user.id,
+    userName: user.name,
+    userEmail: user.email,
+    paymentMethod,
+    accountNumber,
+    coinsAmount,
+    takaAmount,
+    status: 'pending',
+    requestedAt: new Date().toISOString(),
+  };
+
+  mockWithdrawals.push(withdrawalRecord);
+
+  // Persist in Supabase
+  try {
+    await supabase.from('withdrawals').upsert({
+      id: withdrawalRecord.id,
+      user_id: withdrawalRecord.userId,
+      user_name: withdrawalRecord.userName,
+      user_email: withdrawalRecord.userEmail,
+      payment_method: withdrawalRecord.paymentMethod,
+      account_number: withdrawalRecord.accountNumber,
+      coins_amount: withdrawalRecord.coinsAmount,
+      taka_amount: withdrawalRecord.takaAmount,
+      status: withdrawalRecord.status,
+      requested_at: withdrawalRecord.requestedAt,
+    });
+  } catch (err) {
+    console.error('Supabase save withdrawal error:', err);
+  }
+
+  res.json({
+    success: true,
+    message: 'Withdrawal request submitted successfully to Request Panel!',
+    withdrawal: withdrawalRecord,
+    user,
+  });
+});
+
+app.get('/api/withdraw/my/:userId', async (req, res) => {
+  const { userId } = req.params;
+  let list = mockWithdrawals.filter(w => w.userId === userId);
+
+  if (list.length === 0) {
+    try {
+      const { data: dbWths } = await supabase
+        .from('withdrawals')
+        .select('*')
+        .eq('user_id', userId)
+        .order('requested_at', { ascending: false });
+
+      if (dbWths) {
+        list = dbWths.map(w => ({
+          id: w.id,
+          userId: w.user_id,
+          userName: w.user_name,
+          userEmail: w.user_email,
+          paymentMethod: w.payment_method,
+          accountNumber: w.account_number,
+          coinsAmount: Number(w.coins_amount) || 0,
+          takaAmount: Number(w.taka_amount) || 0,
+          status: w.status,
+          rejectionReason: w.rejection_reason,
+          requestedAt: w.requested_at,
+          processedAt: w.processed_at,
+        }));
+      }
+    } catch (err) {
+      console.error('Supabase fetch my withdrawals error:', err);
+    }
+  }
+
+  res.json({ success: true, withdrawals: list });
+});
+
+app.get('/api/admin/withdrawals', async (req, res) => {
+  let list = [...mockWithdrawals];
+
+  try {
+    const { data: dbWths } = await supabase
+      .from('withdrawals')
+      .select('*')
+      .order('requested_at', { ascending: false });
+
+    if (dbWths && dbWths.length > 0) {
+      list = dbWths.map(w => ({
+        id: w.id,
+        userId: w.user_id,
+        userName: w.user_name,
+        userEmail: w.user_email,
+        paymentMethod: w.payment_method,
+        accountNumber: w.account_number,
+        coinsAmount: Number(w.coins_amount) || 0,
+        takaAmount: Number(w.taka_amount) || 0,
+        status: w.status,
+        rejectionReason: w.rejection_reason,
+        requestedAt: w.requested_at,
+        processedAt: w.processed_at,
+      }));
+    }
+  } catch (err) {
+    console.error('Supabase fetch admin withdrawals error:', err);
+  }
+
+  res.json({ success: true, withdrawals: list });
+});
+
+app.post('/api/admin/withdrawals/review', async (req, res) => {
+  const { withdrawalId, status, rejectionReason } = req.body;
+
+  const wRecord = mockWithdrawals.find(w => w.id === withdrawalId);
+  if (wRecord) {
+    wRecord.status = status;
+    wRecord.processedAt = new Date().toISOString();
+    wRecord.rejectionReason = rejectionReason;
+
+    // Refund if rejected
+    if (status === 'rejected') {
+      const user = await getUserById(wRecord.userId);
+      if (user) {
+        user.balance += wRecord.coinsAmount;
+        await saveUserToSupabase(user);
+      }
+    }
+  }
+
+  try {
+    await supabase.from('withdrawals').update({
+      status,
+      rejection_reason: rejectionReason || null,
+      processed_at: new Date().toISOString(),
+    }).eq('id', withdrawalId);
+
+    if (status === 'rejected' && wRecord) {
+      const user = await getUserById(wRecord.userId);
+      if (user) {
+        await supabase.from('users').update({ balance: user.balance }).eq('id', user.id);
+      }
+    }
+  } catch (err) {
+    console.error('Supabase review withdrawal error:', err);
+  }
+
+  res.json({ success: true, message: `Withdrawal request ${status}` });
 });
 
 // Serve Vite frontend

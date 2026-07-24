@@ -98,7 +98,7 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
             <span>INCREASE YOUR RATING</span>
           </h2>
           <p className="text-xs text-amber-300/70 mt-1">
-            Complete daily tasks, submit proof screenshots, and earn bonus $NXB coins!
+            টাস্ক পূরণ করুন, স্ক্রিনশট প্রুফ দিন এবং টাকা (Taka BDT) রিওয়ার্ড পান!
           </p>
         </div>
         <img
@@ -165,8 +165,8 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-xl border border-amber-500/20">
-                  +{task.reward.toLocaleString()}
+                <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
+                  ৳ {task.reward} Taka
                 </span>
 
                 {status === 'approved' ? (
@@ -221,7 +221,7 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
             <div className="bg-[#1c110d] p-3 rounded-2xl border border-[#3a271f] text-xs">
               <p className="font-bold text-amber-200">{selectedTask.title}</p>
               <p className="text-amber-300/70 mt-1">{selectedTask.description}</p>
-              <div className="mt-2 text-amber-400 font-mono font-bold">Reward: +{selectedTask.reward} $NXB</div>
+              <div className="mt-2 text-emerald-400 font-mono font-bold">Reward: ৳ {selectedTask.reward} Taka</div>
             </div>
 
             {selectedTask.requiresProof ? (

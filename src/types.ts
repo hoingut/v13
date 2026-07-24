@@ -84,3 +84,18 @@ export interface TapResponse {
   newSubjectLevel: number;
   newSubjectMaxHp: number;
 }
+
+export interface WithdrawalRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  paymentMethod: 'bKash' | 'Nagad' | 'Rocket';
+  accountNumber: string;
+  coinsAmount: number;
+  takaAmount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  requestedAt: string;
+  processedAt?: string;
+}

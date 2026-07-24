@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { SystemSettings, TaskSubmission } from '../types';
+import { SystemSettings, TaskSubmission, WithdrawalRecord } from '../types';
 import {
   fetchAdminSettingsApi,
   updateAdminSettingsApi,
   fetchAdminSubmissionsApi,
   reviewSubmissionApi,
   createAdminTaskApi,
+  fetchWithdrawalsApi,
+  reviewWithdrawalApi,
 } from '../lib/api';
-import { ShieldCheck, Key, Mail, CheckCircle, XCircle, Plus, Sparkles, X, Image as ImageIcon } from 'lucide-react';
+import { ShieldCheck, Key, Mail, CheckCircle, XCircle, Plus, Sparkles, X, Image as ImageIcon, Wallet } from 'lucide-react';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -16,7 +18,8 @@ interface AdminPanelProps {
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
-  const [activeTab, setActiveTab] = useState<'settings' | 'submissions' | 'add_task'>('submissions');
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
+  const [activeTab, setActiveTab] = useState<'settings' | 'submissions' | 'withdrawals' | 'add_task'>('withdrawals');
 
   // Form states
   const [imgbbKey, setImgbbKey] = useState('');
@@ -39,6 +42,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   useEffect(() => {
     loadSettings();
     loadSubmissions();
+    loadWithdrawals();
   }, []);
 
   const loadSettings = async () => {
@@ -59,6 +63,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       setSubmissions(res.submissions);
     }
   };
+
+  const loadWithdrawals = async () => {
+    const res = await fetchWithdrawalsApi();
+    if (res.withdrawals) {
+      setWithdrawals(res.withdrawals);
+    }
+  };
+
+  const handleReviewWithdrawal = async (id: string, status: 'approved' | 'rejected') => {
+    const res = await reviewWithdrawalApi(id, status);
+    if (res.success) {
+      setMessage(`Withdrawal request ${status}`);
+      loadWithdrawals();
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,14 +144,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-2 bg-[#170d0a] p-1.5 rounded-2xl border border-[#3b271f]">
+        <div className="flex items-center gap-1.5 bg-[#170d0a] p-1.5 rounded-2xl border border-[#3b271f]">
+          <button
+            onClick={() => setActiveTab('withdrawals')}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-xl ${
+              activeTab === 'withdrawals' ? 'bg-amber-500 text-black font-black' : 'text-amber-200/60'
+            }`}
+          >
+            Request Panel ({withdrawals.filter(w => w.status === 'pending').length})
+          </button>
           <button
             onClick={() => setActiveTab('submissions')}
             className={`flex-1 py-1.5 text-xs font-bold rounded-xl ${
               activeTab === 'submissions' ? 'bg-amber-500 text-black' : 'text-amber-200/60'
             }`}
           >
-            Proof Reviews ({submissions.filter(s => s.status === 'pending').length})
+            Proofs ({submissions.filter(s => s.status === 'pending').length})
           </button>
           <button
             onClick={() => setActiveTab('add_task')}
@@ -138,7 +167,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
               activeTab === 'add_task' ? 'bg-amber-500 text-black' : 'text-amber-200/60'
             }`}
           >
-            Create Task
+            Tasks
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -146,7 +175,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
               activeTab === 'settings' ? 'bg-amber-500 text-black' : 'text-amber-200/60'
             }`}
           >
-            API & SMTP Settings
+            Settings
           </button>
         </div>
 
@@ -156,6 +185,56 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             <span>{message}</span>
           </div>
         )}
+
+        {/* Tab 0: Withdrawal Request Panel */}
+        {activeTab === 'withdrawals' && (
+          <div className="flex flex-col gap-3 my-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+              <Wallet className="w-4 h-4 text-amber-400" />
+              <span>Pending Withdrawal Requests (Request Panel)</span>
+            </h3>
+
+            {withdrawals.filter(w => w.status === 'pending').length === 0 ? (
+              <p className="text-xs text-amber-300/50 py-4 text-center">No pending withdrawal requests.</p>
+            ) : (
+              withdrawals.filter(w => w.status === 'pending').map(req => (
+                <div key={req.id} className="bg-[#1a0f0c] p-3.5 rounded-2xl border border-[#3e2920] flex flex-col gap-2 text-xs">
+                  <div className="flex justify-between items-center font-bold text-amber-100">
+                    <span>{req.userName} ({req.userEmail})</span>
+                    <span className="text-emerald-400 font-mono text-sm font-black">৳ {req.takaAmount} BDT</span>
+                  </div>
+
+                  <div className="bg-[#110907] p-2.5 rounded-xl border border-[#2d1b15] font-mono text-xs flex justify-between items-center text-amber-200">
+                    <div>
+                      <span className="text-amber-400 font-bold">{req.paymentMethod}: </span>
+                      <span className="text-white font-extrabold">{req.accountNumber}</span>
+                    </div>
+                    <span className="text-[11px] text-amber-300/70">{req.coinsAmount.toLocaleString()} Coins</span>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-amber-300/60">
+                    <span>Requested: {new Date(req.requestedAt).toLocaleString()}</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleReviewWithdrawal(req.id, 'rejected')}
+                        className="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-3 py-1 rounded-xl font-bold flex items-center gap-1 hover:bg-rose-500/30"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Reject
+                      </button>
+                      <button
+                        onClick={() => handleReviewWithdrawal(req.id, 'approved')}
+                        className="bg-emerald-500 text-black px-4 py-1 rounded-xl font-extrabold flex items-center gap-1 hover:bg-emerald-400 shadow-md"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Approve & Pay
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
 
         {/* Tab 1: Proof Submissions */}
         {activeTab === 'submissions' && (
@@ -231,7 +310,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="font-bold text-amber-300 block mb-1">$NXB Reward</label>
+                <label className="font-bold text-amber-300 block mb-1">Reward (Taka / ৳ BDT)</label>
                 <input
                   type="number"
                   required

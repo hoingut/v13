@@ -76,8 +76,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
       return;
     }
 
+    if (!password) {
+      setErrorMessage('Password is required for login!');
+      return;
+    }
+
     setLoading(true);
-    const res = await loginApi(email);
+    const res = await loginApi(email, password);
     setLoading(false);
 
     if (res.success && res.user) {
@@ -258,6 +263,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
                   onChange={e => setEmail(e.target.value)}
                   placeholder="user@gmail.com"
                   className="w-full bg-[#180e0b] border border-[#3e2a22] rounded-xl pl-9 pr-3 py-2.5 text-amber-100 focus:outline-none focus:border-amber-500 font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-bold text-amber-300 block mb-1">Password</label>
+              <div className="relative">
+                <Key className="w-4 h-4 text-amber-400/80 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-[#180e0b] border border-[#3e2a22] rounded-xl pl-9 pr-3 py-2.5 text-amber-100 focus:outline-none focus:border-amber-500"
                 />
               </div>
             </div>

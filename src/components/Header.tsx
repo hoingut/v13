@@ -1,14 +1,15 @@
 import React from 'react';
 import { User } from '../types';
-import { ShieldCheck, User as UserIcon, Sparkles } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Sparkles, Wallet } from 'lucide-react';
 
 interface HeaderProps {
   user: User | null;
   onOpenAuth: () => void;
   onOpenAdmin: () => void;
+  onOpenWithdraw: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ user, onOpenAuth, onOpenAdmin }) => {
+export const Header: React.FC<HeaderProps> = ({ user, onOpenAuth, onOpenAdmin, onOpenWithdraw }) => {
   return (
     <header className="px-4 pt-3 pb-2 flex items-center justify-between text-amber-50">
       {/* Left / Profile */}
@@ -37,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onOpenAuth, onOpenAdmin })
       ) : (
         <button
           onClick={onOpenAuth}
-          className="flex items-center gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-2xl font-medium text-xs shadow-lg transition-all border border-amber-400/30 active:scale-95"
+          className="flex items-center gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-2xl font-medium text-xs shadow-lg transition-all border border-amber-400/30 active:scale-95 cursor-pointer"
         >
           <UserIcon className="w-4 h-4" />
           <span>Login / Signup (Gmail)</span>
@@ -46,19 +47,27 @@ export const Header: React.FC<HeaderProps> = ({ user, onOpenAuth, onOpenAdmin })
 
       {/* Right Actions */}
       <div className="flex items-center gap-2">
+        {user && (
+          <button
+            onClick={onOpenWithdraw}
+            className="bg-gradient-to-r from-emerald-500 to-teal-600 text-black font-extrabold px-3 py-1.5 rounded-xl text-xs shadow-md border border-emerald-400/50 hover:from-emerald-400 hover:to-teal-500 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            <span>Withdraw</span>
+          </button>
+        )}
+
         {user?.role === 'admin' && (
           <button
             onClick={onOpenAdmin}
-            className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-amber-500/30 transition-all flex items-center gap-1"
+            className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-amber-500/30 transition-all flex items-center gap-1 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Admin Panel</span>
+            <span>Admin</span>
           </button>
         )}
-        <div className="bg-[#2a1d18]/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#4a342a]/60 text-xs font-semibold text-amber-300/90 font-mono">
-          # 11.7 M
-        </div>
       </div>
     </header>
   );
 };
+

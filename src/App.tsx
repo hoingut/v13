@@ -10,13 +10,16 @@ import { UpgradesView } from './components/UpgradesView';
 import { ReferralView } from './components/ReferralView';
 import { AdminPanel } from './components/AdminPanel';
 import { AuthModal } from './components/AuthModal';
+import { WithdrawModal } from './components/WithdrawModal';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('game');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [urlRefCode, setUrlRefCode] = useState<string>('');
+
 
   // Extract ?ref= Referral code from URL if present
   useEffect(() => {
@@ -97,6 +100,7 @@ export default function App() {
           user={user}
           onOpenAuth={() => setShowAuthModal(true)}
           onOpenAdmin={() => setShowAdminModal(true)}
+          onOpenWithdraw={() => setShowWithdrawModal(true)}
         />
 
         {/* Dynamic Body Tabs */}
@@ -155,6 +159,15 @@ export default function App() {
       {/* Admin Panel Modal */}
       {showAdminModal && (
         <AdminPanel onClose={() => setShowAdminModal(false)} />
+      )}
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && user && (
+        <WithdrawModal
+          user={user}
+          onClose={() => setShowWithdrawModal(false)}
+          onUpdateUser={handleUserUpdate}
+        />
       )}
     </div>
   );
