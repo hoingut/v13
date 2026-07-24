@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Task, TaskSubmission } from '../types';
 import { fetchTasksApi, fetchMySubmissionsApi, submitTaskProofApi } from '../lib/api';
-import { DailyCheckIn } from './DailyCheckIn';
 import { CheckCircle, Clock, Upload, ExternalLink, Flag, Image as ImageIcon, ShieldCheck, X } from 'lucide-react';
 
 interface TaskListProps {
@@ -112,13 +111,6 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
           className="w-12 h-12 rounded-2xl shadow-lg border border-amber-400/40"
         />
       </div>
-
-      {/* Daily Check-in System */}
-      <DailyCheckIn
-        user={user}
-        onUpdateUser={onUpdateUser}
-        onOpenAuth={onOpenAuth}
-      />
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 bg-[#251814]/90 p-1.5 rounded-2xl border border-[#443027]">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import { claimDailyCheckInApi } from '../lib/api';
+import { claimDailyCheckInApi, uploadAvatarApi } from '../lib/api';
 import {
   User as UserIcon,
   ShieldCheck,
@@ -11,7 +11,6 @@ import {
   Gift,
   Flame,
   Clock,
-  Calendar,
   CheckCircle,
   ArrowRight,
   Send,
@@ -20,8 +19,8 @@ import {
   ShieldAlert,
   Lock,
   CheckCircle2,
-  Database,
-  Code2
+  Camera,
+  Loader2
 } from 'lucide-react';
 
 interface AccountViewProps {
@@ -43,113 +42,6 @@ const STREAK_DAYS = [
   { day: 7, reward: 25000, bonus: '⚡ +100 Energy' },
 ];
 
-const FULL_PROJECT_SQL = `-- Full SQL Schema for XN Reward / NXB Application (PostgreSQL / Supabase Compatible)
-
--- 1. Users Table
-CREATE TABLE IF NOT EXISTS public.users (
-  id VARCHAR(100) PRIMARY KEY,
-  name VARCHAR(150) NOT NULL,
-  email VARCHAR(150) UNIQUE NOT NULL,
-  password TEXT DEFAULT '',
-  role VARCHAR(20) DEFAULT 'user',
-  balance NUMERIC(15, 2) DEFAULT 0, -- Coins Balance
-  taka_balance NUMERIC(15, 2) DEFAULT 0, -- Taka Balance
-  energy INT DEFAULT 1000,
-  max_energy INT DEFAULT 1000,
-  energy_level INT DEFAULT 1,
-  hit_level INT DEFAULT 1,
-  hit_damage NUMERIC(10, 2) DEFAULT 0.5,
-  subject_level INT DEFAULT 1,
-  subject_hp NUMERIC(15, 2) DEFAULT 100,
-  subject_max_hp NUMERIC(15, 2) DEFAULT 100,
-  referral_code VARCHAR(50) UNIQUE,
-  referred_by VARCHAR(100),
-  device_id VARCHAR(100),
-  device_name VARCHAR(150),
-  last_check_in_date VARCHAR(20),
-  check_in_streak INT DEFAULT 0,
-  avatar TEXT,
-  is_banned BOOLEAN DEFAULT FALSE,
-  last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 2. Tasks Table
-CREATE TABLE IF NOT EXISTS public.tasks (
-  id VARCHAR(100) PRIMARY KEY,
-  title VARCHAR(200) NOT NULL,
-  description TEXT,
-  reward NUMERIC(15, 2) DEFAULT 100,
-  type VARCHAR(20) DEFAULT 'one_time',
-  category VARCHAR(50) DEFAULT 'social',
-  action_url TEXT,
-  requires_proof BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 3. Task Submissions Table
-CREATE TABLE IF NOT EXISTS public.task_submissions (
-  id VARCHAR(100) PRIMARY KEY,
-  task_id VARCHAR(100) REFERENCES public.tasks(id) ON DELETE CASCADE,
-  user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
-  user_name VARCHAR(150),
-  user_email VARCHAR(150),
-  proof_image_url TEXT,
-  status VARCHAR(20) DEFAULT 'pending',
-  rejection_reason TEXT,
-  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  reviewed_at TIMESTAMP WITH TIME ZONE
-);
-
--- 4. Withdrawal Records Table
-CREATE TABLE IF NOT EXISTS public.withdrawal_records (
-  id VARCHAR(100) PRIMARY KEY,
-  user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
-  user_name VARCHAR(150),
-  user_email VARCHAR(150),
-  withdraw_type VARCHAR(20) DEFAULT 'coins', -- 'coins' or 'taka'
-  payment_method VARCHAR(50) NOT NULL, -- 'bKash' | 'Nagad' | 'Rocket' | 'Binance'
-  account_number VARCHAR(100) NOT NULL,
-  coins_amount NUMERIC(15, 2) DEFAULT 0,
-  taka_amount NUMERIC(15, 2) NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending',
-  requested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  processed_at TIMESTAMP WITH TIME ZONE
-);
-
--- 5. Referrals Table
-CREATE TABLE IF NOT EXISTS public.referrals (
-  id VARCHAR(100) PRIMARY KEY,
-  referrer_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
-  referred_user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
-  referred_user_name VARCHAR(150),
-  referred_user_email VARCHAR(150),
-  referred_device_id VARCHAR(100),
-  referred_device_name VARCHAR(150),
-  is_first_referral BOOLEAN DEFAULT FALSE,
-  status VARCHAR(20) DEFAULT 'pending',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  verified_at TIMESTAMP WITH TIME ZONE
-);
-
--- 6. OTP Verification Table
-CREATE TABLE IF NOT EXISTS public.otps (
-  id VARCHAR(100) PRIMARY KEY,
-  email VARCHAR(150) NOT NULL,
-  otp_code VARCHAR(10) NOT NULL,
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Ensure all missing columns exist for existing deployments:
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS taka_balance NUMERIC(15, 2) DEFAULT 0;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS avatar TEXT;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_check_in_date VARCHAR(20);
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS check_in_streak INT DEFAULT 0;
-ALTER TABLE public.withdrawal_records ADD COLUMN IF NOT EXISTS withdraw_type VARCHAR(20) DEFAULT 'coins';
-`;
-
 export const AccountView: React.FC<AccountViewProps> = ({
   user,
   onUpdateUser,
@@ -159,12 +51,11 @@ export const AccountView: React.FC<AccountViewProps> = ({
   onLogout,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [sqlCopied, setSqlCopied] = useState(false);
-  const [showSqlModal, setShowSqlModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [claimToast, setClaimToast] = useState<{ message: string; isError?: boolean } | null>(null);
 
-  // Real-time Countdown Timer until midnight
+  // Real-time Countdown Timer until midnight (12 AM)
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number }>({
     hours: 0,
     minutes: 0,
@@ -215,12 +106,6 @@ export const AccountView: React.FC<AccountViewProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(FULL_PROJECT_SQL);
-    setSqlCopied(true);
-    setTimeout(() => setSqlCopied(false), 2000);
-  };
-
   const todayStr = new Date().toISOString().split('T')[0];
   const isClaimedToday = user.lastCheckInDate === todayStr;
   const currentStreak = user.checkInStreak || 0;
@@ -247,20 +132,75 @@ export const AccountView: React.FC<AccountViewProps> = ({
     }
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    setClaimToast(null);
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      try {
+        const res = await uploadAvatarApi(user.id, base64);
+        setUploadingAvatar(false);
+        if (res.success && res.user) {
+          if (onUpdateUser) onUpdateUser(res.user);
+          setClaimToast({ message: 'Profile picture updated successfully! 📸' });
+        } else {
+          setClaimToast({ message: res.error || 'Avatar upload failed', isError: true });
+        }
+      } catch (err) {
+        setUploadingAvatar(false);
+        setClaimToast({ message: 'Network error uploading profile picture', isError: true });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="flex flex-col gap-4 px-4 pt-2 pb-24 text-amber-50">
-      {/* Profile Overview Banner */}
+      {/* Profile Overview Banner with Profile Picture Upload */}
       <div className="bg-gradient-to-br from-[#2f1f19] via-[#241713] to-[#180e0a] p-5 rounded-3xl border border-[#4d362c] shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
 
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white font-black text-2xl shadow-xl border border-amber-400/30 shrink-0">
-            {user.name.charAt(0).toUpperCase()}
+          {/* Avatar with Camera Overlay Trigger */}
+          <div className="relative group shrink-0">
+            {user.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="w-16 h-16 rounded-2xl object-cover shadow-xl border-2 border-amber-400/50"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white font-black text-2xl shadow-xl border border-amber-400/30">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+
+            {/* Profile Picture Upload Button Input Overlay */}
+            <label className="absolute -bottom-1 -right-1 bg-amber-500 hover:bg-amber-400 text-black p-1.5 rounded-xl shadow-lg border border-amber-200 cursor-pointer transition-transform active:scale-90 flex items-center justify-center">
+              {uploadingAvatar ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Camera className="w-3.5 h-3.5" />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                disabled={uploadingAvatar}
+                className="hidden"
+              />
+            </label>
           </div>
 
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-black text-amber-100 truncate">{user.name}</h2>
             <p className="text-xs text-amber-300/70 font-mono truncate">{user.email}</p>
+
             <div className="flex items-center gap-2 mt-2">
               <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" />
@@ -356,7 +296,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
           })}
         </div>
 
-        {/* Action Claim Button directly inside AccountView */}
+        {/* Action Claim / Status Toast */}
         {claimToast && (
           <div
             className={`p-2 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 ${
@@ -489,41 +429,6 @@ export const AccountView: React.FC<AccountViewProps> = ({
             <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
-      </div>
-
-      {/* Project Database SQL Viewer / Exporter */}
-      <div className="bg-[#1f120d] p-4 rounded-3xl border border-amber-500/30 shadow-xl space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-amber-300 text-xs font-bold">
-            <Database className="w-4 h-4 text-amber-400" />
-            <span>Full Project Database SQL Schema</span>
-          </div>
-          <button
-            onClick={() => setShowSqlModal(!showSqlModal)}
-            className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-xl font-bold hover:bg-amber-500/30 cursor-pointer flex items-center gap-1"
-          >
-            <Code2 className="w-3 h-3" />
-            <span>{showSqlModal ? 'Hide SQL' : 'View SQL'}</span>
-          </button>
-        </div>
-
-        {showSqlModal && (
-          <div className="mt-2 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-amber-300/70">PostgreSQL / Supabase compatible DDL script:</span>
-              <button
-                onClick={handleCopySql}
-                className="bg-emerald-500 text-black px-3 py-1 rounded-xl font-bold text-[10px] flex items-center gap-1 hover:bg-emerald-400 cursor-pointer shadow-md"
-              >
-                {sqlCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                <span>{sqlCopied ? 'SQL Copied!' : 'Copy SQL'}</span>
-              </button>
-            </div>
-            <pre className="bg-[#0e0806] p-3 rounded-2xl border border-[#3a251b] text-[10px] text-emerald-400 font-mono overflow-x-auto max-h-60 leading-relaxed">
-              {FULL_PROJECT_SQL}
-            </pre>
-          </div>
-        )}
       </div>
 
       {/* Anti-Fraud Rules & Referral Policy Section */}
