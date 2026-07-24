@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { TabType } from './Navbar';
-import { ShieldCheck, User as UserIcon, Sparkles, Wallet, Menu, X, CheckSquare, History, Gamepad2, Gift, Trophy, Zap, LogOut, Send, MessageCircle, AlertTriangle, Smartphone } from 'lucide-react';
+import { uploadAvatarApi } from '../lib/api';
+import { ShieldCheck, User as UserIcon, Sparkles, Wallet, Menu, X, CheckSquare, History, Gamepad2, Gift, Trophy, Zap, LogOut, Send, MessageCircle, Camera, Loader2 } from 'lucide-react';
 
 interface HeaderProps {
   user: User | null;
+  onUpdateUser?: (user: User) => void;
   onOpenAuth: () => void;
   onOpenAdmin: () => void;
   onOpenWithdraw: () => void;
@@ -14,6 +16,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   user,
+  onUpdateUser,
   onOpenAuth,
   onOpenAdmin,
   onOpenWithdraw,
@@ -21,12 +24,55 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
 }) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
 
   const handleNavClick = (tab: TabType) => {
     if (onSelectTab) {
       onSelectTab(tab);
     }
     setDrawerOpen(false);
+  };
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('অনুগ্রহ করে একটি ইমেজ ফাইল নির্বাচন করুন (JPEG, PNG)');
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert('ইমেজ সাইজ ৮MB এর নিচে হতে হবে');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadMsg('Uploading DP via ImgBB...');
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const res = await uploadAvatarApi(user.id, base64);
+        setIsUploading(false);
+        if (res.success && res.user && onUpdateUser) {
+          onUpdateUser(res.user);
+          setUploadMsg('DP successfully updated!');
+          setTimeout(() => setUploadMsg(null), 3000);
+        } else {
+          setUploadMsg(res.error || 'Failed to upload DP');
+          setTimeout(() => setUploadMsg(null), 3000);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+      setIsUploading(false);
+      setUploadMsg('Error uploading image');
+      setTimeout(() => setUploadMsg(null), 3000);
+    }
   };
 
   return (
@@ -49,7 +95,11 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-2.5 bg-[#2a1d18]/90 backdrop-blur-md p-1.5 pr-3 rounded-2xl border border-[#4a342a]/80 shadow-lg cursor-pointer hover:border-amber-500/50 transition-all"
             >
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center font-black text-white shadow-md relative overflow-hidden text-sm shrink-0 border border-amber-300/30">
-                <span>{user.name.charAt(0).toUpperCase()}</span>
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{user.name.charAt(0).toUpperCase()}</span>
+                )}
               </div>
               <div className="hidden sm:block">
                 <div className="flex items-center gap-1">
@@ -143,11 +193,41 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Professional Profile Details Banner inside drawer */}
               {user ? (
-                <div className="bg-gradient-to-br from-[#291a14] to-[#1d120d] p-3.5 rounded-2xl border border-amber-500/30 mb-3 shadow-inner">
+                <div className="bg-gradient-to-br from-[#291a14] to-[#1d120d] p-3.5 rounded-2xl border border-amber-500/30 mb-3 shadow-inner relative">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center font-black text-white text-lg shadow-md border border-amber-300/30 shrink-0">
-                      {user.name.charAt(0).toUpperCase()}
+                    <div className="relative group shrink-0">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center font-black text-white text-lg shadow-md border border-amber-300/30 overflow-hidden">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{user.name.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+
+                      {/* ImgBB DP Camera Overlay */}
+                      <label
+                        htmlFor="drawer-dp-upload"
+                        className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center shadow-lg cursor-pointer border border-amber-200 transition-all ${
+                          isUploading ? 'opacity-50 pointer-events-none' : ''
+                        }`}
+                        title="Upload DP via ImgBB"
+                      >
+                        {isUploading ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Camera className="w-3.5 h-3.5" />
+                        )}
+                        <input
+                          id="drawer-dp-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarFileChange}
+                          disabled={isUploading}
+                          className="hidden"
+                        />
+                      </label>
                     </div>
+
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-black text-amber-100 truncate">{user.name}</div>
                       <div className="text-[10px] text-amber-300/60 font-mono truncate">{user.email}</div>
@@ -157,6 +237,12 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {uploadMsg && (
+                    <div className="mt-2 text-[10px] text-amber-300 bg-amber-950/60 p-1.5 rounded-lg border border-amber-500/30 font-mono text-center animate-pulse">
+                      {uploadMsg}
+                    </div>
+                  )}
 
                   <div className="mt-3 pt-2 border-t border-[#3e281e] flex items-center justify-between text-xs font-mono">
                     <span className="text-amber-300/70">Coins Balance:</span>

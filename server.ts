@@ -249,6 +249,10 @@ async function getUserById(userIdOrEmail: string): Promise<User | null> {
         deviceName: dbUser.device_name || '',
         lastActive: dbUser.last_active || new Date().toISOString(),
         createdAt: dbUser.created_at || new Date().toISOString(),
+        lastCheckInDate: dbUser.last_check_in_date || undefined,
+        checkInStreak: dbUser.check_in_streak || 0,
+        avatar: dbUser.avatar || undefined,
+        isBanned: Boolean(dbUser.is_banned),
       };
       mockUsers.set(user.id, user);
       mockUsers.set(user.email.toLowerCase(), user);
@@ -284,6 +288,10 @@ async function saveUserToSupabase(user: User): Promise<void> {
       device_id: user.deviceId,
       device_name: user.deviceName,
       last_active: user.lastActive,
+      last_check_in_date: user.lastCheckInDate || null,
+      check_in_streak: user.checkInStreak || 0,
+      avatar: user.avatar || null,
+      is_banned: Boolean(user.isBanned),
     });
     if (error) {
       console.error('Supabase user upsert error:', error.message, error.details);
@@ -1271,6 +1279,222 @@ app.post('/api/admin/withdrawals/review', async (req, res) => {
   }
 
   res.json({ success: true, message: `Withdrawal request ${status}` });
+});
+
+// 17. User Profile Avatar / DP Upload
+app.post('/api/user/upload-avatar', async (req, res) => {
+  const { userId, imageBase64 } = req.body;
+  if (!userId || !imageBase64) {
+    return res.status(400).json({ error: 'User ID and image data are required!' });
+  }
+
+  const user = await getUserById(userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found!' });
+  }
+
+  // Upload to ImgBB
+  const avatarUrl = await uploadToImgBB(imageBase64);
+  user.avatar = avatarUrl;
+
+  mockUsers.set(user.id, user);
+  if (user.email) mockUsers.set(user.email.toLowerCase(), user);
+
+  await saveUserToSupabase(user);
+
+  res.json({
+    success: true,
+    message: 'Profile picture updated successfully!',
+    avatar: avatarUrl,
+    user,
+  });
+});
+
+// 18. Admin Users Section Endpoints
+app.get('/api/admin/users', async (req, res) => {
+  const query = (req.query.query as string || '').toLowerCase().trim();
+
+  let allUsersList: User[] = Array.from(new Set(mockUsers.values()));
+
+  try {
+    const { data: dbUsers } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (dbUsers && dbUsers.length > 0) {
+      const dbMap = new Map<string, User>();
+      dbUsers.forEach(dbU => {
+        const mappedUser: User = {
+          id: dbU.id,
+          name: dbU.name,
+          email: dbU.email,
+          role: dbU.role || 'user',
+          balance: Number(dbU.balance) || 0,
+          energy: dbU.energy || 1000,
+          maxEnergy: dbU.max_energy || 1000,
+          energyLevel: dbU.energy_level || 1,
+          hitLevel: dbU.hit_level || 1,
+          hitDamage: Number(dbU.hit_damage) || 0.5,
+          subjectLevel: dbU.subject_level || 1,
+          subjectHp: Number(dbU.subject_hp) || 100,
+          subjectMaxHp: Number(dbU.subject_max_hp) || 100,
+          referralCode: dbU.referral_code || '',
+          referredBy: dbU.referred_by || undefined,
+          deviceId: dbU.device_id || '',
+          deviceName: dbU.device_name || '',
+          lastActive: dbU.last_active || new Date().toISOString(),
+          createdAt: dbU.created_at || new Date().toISOString(),
+          lastCheckInDate: dbU.last_check_in_date || undefined,
+          checkInStreak: dbU.check_in_streak || 0,
+          avatar: dbU.avatar || undefined,
+          isBanned: Boolean(dbU.is_banned),
+        };
+        dbMap.set(mappedUser.id, mappedUser);
+      });
+
+      // Merge memory users with DB users
+      mockUsers.forEach(mU => {
+        dbMap.set(mU.id, mU);
+      });
+
+      allUsersList = Array.from(dbMap.values());
+    }
+  } catch (err) {
+    console.error('Supabase fetch admin users error:', err);
+  }
+
+  // Filter if query present
+  if (query) {
+    allUsersList = allUsersList.filter(u =>
+      u.name.toLowerCase().includes(query) ||
+      u.email.toLowerCase().includes(query) ||
+      u.id.toLowerCase().includes(query) ||
+      (u.referralCode && u.referralCode.toLowerCase().includes(query))
+    );
+  }
+
+  res.json({ success: true, users: allUsersList });
+});
+
+// Admin: Adjust Balance
+app.post('/api/admin/users/adjust-balance', async (req, res) => {
+  const { userId, amount, action } = req.body;
+  const user = await getUserById(userId);
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found!' });
+  }
+
+  const numericAmount = Number(amount) || 0;
+  if (action === 'subtract') {
+    user.balance = Math.max(0, user.balance - numericAmount);
+  } else {
+    user.balance += numericAmount;
+  }
+
+  mockUsers.set(user.id, user);
+  if (user.email) mockUsers.set(user.email.toLowerCase(), user);
+  await saveUserToSupabase(user);
+
+  res.json({
+    success: true,
+    message: `User balance ${action === 'subtract' ? 'deducted' : 'increased'} by ${numericAmount.toLocaleString()} coins`,
+    user,
+  });
+});
+
+// Admin: Adjust Referrals
+app.post('/api/admin/users/adjust-referrals', async (req, res) => {
+  const { userId, referralCount } = req.body;
+  const user = await getUserById(userId);
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found!' });
+  }
+
+  const count = Number(referralCount) || 1;
+  // Add synthetic verified referrals
+  for (let i = 0; i < count; i++) {
+    const dummyRef: ReferralRecord = {
+      id: `ref_admin_add_${Date.now()}_${i}`,
+      referrerId: user.id,
+      referredUserId: `usr_dummy_${Date.now()}_${i}`,
+      referredUserName: `Admin Added Referral ${i + 1}`,
+      referredUserEmail: `ref${i + 1}@nxpost.online`,
+      referredDeviceId: `dev_ref_${i}`,
+      referredDeviceName: 'Verified Member',
+      isFirstReferral: false,
+      status: 'verified',
+      createdAt: new Date().toISOString(),
+      verifiedAt: new Date().toISOString(),
+    };
+    mockReferrals.push(dummyRef);
+
+    try {
+      await supabase.from('referrals').upsert({
+        id: dummyRef.id,
+        referrer_id: dummyRef.referrerId,
+        referred_user_id: dummyRef.referredUserId,
+        referred_user_name: dummyRef.referredUserName,
+        referred_user_email: dummyRef.referredUserEmail,
+        referred_device_id: dummyRef.referredDeviceId,
+        referred_device_name: dummyRef.referredDeviceName,
+        is_first_referral: false,
+        status: 'verified',
+        created_at: dummyRef.createdAt,
+        verified_at: dummyRef.verifiedAt,
+      });
+    } catch (err) {
+      console.error('Supabase add dummy ref error:', err);
+    }
+  }
+
+  res.json({
+    success: true,
+    message: `Added ${count} verified referral(s) to user!`,
+    user,
+  });
+});
+
+// Admin: Ban / Unban User
+app.post('/api/admin/users/ban', async (req, res) => {
+  const { userId, isBanned } = req.body;
+  const user = await getUserById(userId);
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found!' });
+  }
+
+  user.isBanned = Boolean(isBanned);
+  mockUsers.set(user.id, user);
+  if (user.email) mockUsers.set(user.email.toLowerCase(), user);
+  await saveUserToSupabase(user);
+
+  res.json({
+    success: true,
+    message: `User has been ${user.isBanned ? 'Banned 🚫' : 'Unbanned ✅'}!`,
+    user,
+  });
+});
+
+// Admin: Delete User
+app.delete('/api/admin/users/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const user = await getUserById(userId);
+
+  if (user) {
+    mockUsers.delete(user.id);
+    if (user.email) mockUsers.delete(user.email.toLowerCase());
+  }
+
+  try {
+    await supabase.from('users').delete().eq('id', userId);
+  } catch (err) {
+    console.error('Supabase delete user error:', err);
+  }
+
+  res.json({ success: true, message: 'User deleted permanently!' });
 });
 
 // Serve Vite frontend

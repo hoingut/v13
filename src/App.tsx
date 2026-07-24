@@ -110,6 +110,7 @@ export default function App() {
         {/* Header with Top-Left Toggle Menu */}
         <Header
           user={user}
+          onUpdateUser={handleUserUpdate}
           onOpenAuth={() => setShowAuthModal(true)}
           onOpenAdmin={() => setActiveTab('admin')}
           onOpenWithdraw={() => handleTabChange('withdraw')}

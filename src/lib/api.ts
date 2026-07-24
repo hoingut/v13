@@ -202,3 +202,54 @@ export async function claimDailyCheckInApi(userId: string) {
   });
   return res.json();
 }
+
+export async function uploadAvatarApi(userId: string, imageBase64: string) {
+  const res = await fetch('/api/user/upload-avatar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, imageBase64 }),
+  });
+  return res.json();
+}
+
+// Admin User Management APIs
+export async function fetchAdminUsersApi(query?: string) {
+  const url = query ? `/api/admin/users?query=${encodeURIComponent(query)}` : '/api/admin/users';
+  const res = await fetch(url);
+  return res.json();
+}
+
+export async function adjustUserBalanceApi(userId: string, amount: number, action: 'add' | 'subtract') {
+  const res = await fetch('/api/admin/users/adjust-balance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, amount, action }),
+  });
+  return res.json();
+}
+
+export async function adjustUserReferralsApi(userId: string, referralCount: number) {
+  const res = await fetch('/api/admin/users/adjust-referrals', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, referralCount }),
+  });
+  return res.json();
+}
+
+export async function toggleUserBanApi(userId: string, isBanned: boolean) {
+  const res = await fetch('/api/admin/users/ban', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, isBanned }),
+  });
+  return res.json();
+}
+
+export async function deleteUserApi(userId: string) {
+  const res = await fetch(`/api/admin/users/${userId}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
+

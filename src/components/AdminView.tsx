@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SystemSettings, TaskSubmission, WithdrawalRecord } from '../types';
+import { SystemSettings, TaskSubmission, WithdrawalRecord, User } from '../types';
 import {
   fetchAdminSettingsApi,
   updateAdminSettingsApi,
@@ -8,19 +8,31 @@ import {
   createAdminTaskApi,
   fetchWithdrawalsApi,
   reviewWithdrawalApi,
+  fetchAdminUsersApi,
+  adjustUserBalanceApi,
+  adjustUserReferralsApi,
+  toggleUserBanApi,
+  deleteUserApi,
 } from '../lib/api';
-import { ShieldCheck, Key, Mail, CheckCircle, XCircle, Plus, Sparkles, Image as ImageIcon, Wallet, Database, Copy, Check, Lock, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Key, Mail, CheckCircle, XCircle, Plus, Sparkles, Image as ImageIcon, Wallet, Lock, RefreshCw, Users, Search, Ban, Trash2, Coins, UserPlus } from 'lucide-react';
 
 export const AdminView: React.FC = () => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<'withdrawals' | 'submissions' | 'add_task' | 'settings' | 'sql_schema'>('withdrawals');
+  const [users, setUsers] = useState<User[]>([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'withdrawals' | 'submissions' | 'users' | 'add_task' | 'settings'>('withdrawals');
 
   // Form states
   const [imgbbKey, setImgbbKey] = useState('');
   const [brevoKey, setBrevoKey] = useState('');
   const [resendKey, setResendKey] = useState('');
+
+  // User adjustment state
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [balanceAmount, setBalanceAmount] = useState<number>(1000);
+  const [refCountAmount, setRefCountAmount] = useState<number>(1);
 
   // New task state
   const [taskTitle, setTaskTitle] = useState('');
@@ -32,7 +44,6 @@ export const AdminView: React.FC = () => {
   const [taskRequiresProof, setTaskRequiresProof] = useState(true);
 
   const [message, setMessage] = useState<string | null>(null);
-  const [sqlCopied, setSqlCopied] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
@@ -41,8 +52,57 @@ export const AdminView: React.FC = () => {
 
   const loadAllData = async () => {
     setLoadingData(true);
-    await Promise.all([loadSettings(), loadSubmissions(), loadWithdrawals()]);
+    await Promise.all([loadSettings(), loadSubmissions(), loadWithdrawals(), loadUsers()]);
     setLoadingData(false);
+  };
+
+  const loadUsers = async () => {
+    const res = await fetchAdminUsersApi();
+    if (res.success && res.users) {
+      setUsers(res.users);
+    }
+  };
+
+  const handleAdjustBalance = async (userId: string, amount: number) => {
+    const action = amount >= 0 ? 'add' : 'subtract';
+    const res = await adjustUserBalanceApi(userId, Math.abs(amount), action);
+    if (res.success) {
+      setMessage(`User balance updated successfully!`);
+      loadUsers();
+    } else {
+      setMessage(`Failed to update balance: ${res.error}`);
+    }
+  };
+
+  const handleAdjustReferrals = async (userId: string, count: number) => {
+    const res = await adjustUserReferralsApi(userId, count);
+    if (res.success) {
+      setMessage(`User referral count updated successfully!`);
+      loadUsers();
+    } else {
+      setMessage(`Failed to update referrals: ${res.error}`);
+    }
+  };
+
+  const handleToggleBan = async (userId: string, currentBanned: boolean) => {
+    const res = await toggleUserBanApi(userId, !currentBanned);
+    if (res.success) {
+      setMessage(`User ban status updated successfully!`);
+      loadUsers();
+    } else {
+      setMessage(`Failed to toggle ban: ${res.error}`);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to permanently delete user "${userName}"?`)) return;
+    const res = await deleteUserApi(userId);
+    if (res.success) {
+      setMessage(`User deleted successfully!`);
+      loadUsers();
+    } else {
+      setMessage(`Failed to delete user: ${res.error}`);
+    }
   };
 
   const loadSettings = async () => {
@@ -133,91 +193,6 @@ export const AdminView: React.FC = () => {
     }
   };
 
-  const sqlCode = `-- SQL Schema for XN Reward / NXB Application (PostgreSQL & Supabase Compatible)
-
-CREATE TABLE IF NOT EXISTS public.users (
-  id VARCHAR(100) PRIMARY KEY,
-  name VARCHAR(150) NOT NULL,
-  email VARCHAR(150) UNIQUE NOT NULL,
-  password TEXT DEFAULT '',
-  role VARCHAR(20) DEFAULT 'user',
-  balance NUMERIC(15, 2) DEFAULT 0,
-  energy INT DEFAULT 1000,
-  max_energy INT DEFAULT 1000,
-  energy_level INT DEFAULT 1,
-  hit_level INT DEFAULT 1,
-  hit_damage NUMERIC(10, 2) DEFAULT 0.5,
-  subject_level INT DEFAULT 1,
-  subject_hp NUMERIC(15, 2) DEFAULT 100,
-  subject_max_hp NUMERIC(15, 2) DEFAULT 100,
-  referral_code VARCHAR(50) UNIQUE,
-  referred_by VARCHAR(100),
-  device_id VARCHAR(100),
-  device_name VARCHAR(150),
-  last_check_in_date VARCHAR(20),
-  check_in_streak INT DEFAULT 0,
-  last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS public.tasks (
-  id VARCHAR(100) PRIMARY KEY,
-  title VARCHAR(200) NOT NULL,
-  description TEXT,
-  reward NUMERIC(15, 2) DEFAULT 100,
-  type VARCHAR(20) DEFAULT 'one_time',
-  category VARCHAR(50) DEFAULT 'social',
-  action_url TEXT,
-  requires_proof BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS public.task_submissions (
-  id VARCHAR(100) PRIMARY KEY,
-  task_id VARCHAR(100) REFERENCES public.tasks(id) ON DELETE CASCADE,
-  user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
-  user_name VARCHAR(150),
-  user_email VARCHAR(150),
-  proof_image_url TEXT,
-  status VARCHAR(20) DEFAULT 'pending',
-  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  reviewed_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE TABLE IF NOT EXISTS public.withdrawal_records (
-  id VARCHAR(100) PRIMARY KEY,
-  user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
-  user_name VARCHAR(150),
-  user_email VARCHAR(150),
-  taka_amount NUMERIC(15, 2) NOT NULL,
-  coins_amount NUMERIC(15, 2) NOT NULL,
-  payment_method VARCHAR(50) NOT NULL,
-  account_number VARCHAR(50) NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending',
-  requested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  processed_at TIMESTAMP WITH TIME ZONE
-);
-
-CREATE TABLE IF NOT EXISTS public.referrals (
-  id VARCHAR(100) PRIMARY KEY,
-  referrer_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
-  referred_user_id VARCHAR(100) REFERENCES public.users(id) ON DELETE CASCADE,
-  referred_user_name VARCHAR(150),
-  referred_user_email VARCHAR(150),
-  referred_device_id VARCHAR(100),
-  referred_device_name VARCHAR(150),
-  is_first_referral BOOLEAN DEFAULT FALSE,
-  status VARCHAR(20) DEFAULT 'pending',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  verified_at TIMESTAMP WITH TIME ZONE
-);`;
-
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(sqlCode);
-    setSqlCopied(true);
-    setTimeout(() => setSqlCopied(false), 2000);
-  };
-
   const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'pending').length;
   const pendingSubmissionsCount = submissions.filter(s => s.status === 'pending').length;
 
@@ -276,6 +251,17 @@ CREATE TABLE IF NOT EXISTS public.referrals (
         </button>
 
         <button
+          onClick={() => setActiveTab('users')}
+          className={`py-2 px-3 text-xs font-black rounded-xl shrink-0 transition-all cursor-pointer ${
+            activeTab === 'users'
+              ? 'bg-amber-500 text-black shadow-md'
+              : 'text-amber-200/70 hover:text-amber-100'
+          }`}
+        >
+          <span>Users ({users.length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('add_task')}
           className={`py-2 px-3 text-xs font-black rounded-xl shrink-0 transition-all cursor-pointer ${
             activeTab === 'add_task'
@@ -295,17 +281,6 @@ CREATE TABLE IF NOT EXISTS public.referrals (
           }`}
         >
           <span>API & SMTP</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('sql_schema')}
-          className={`py-2 px-3 text-xs font-black rounded-xl shrink-0 transition-all cursor-pointer ${
-            activeTab === 'sql_schema'
-              ? 'bg-amber-500 text-black shadow-md'
-              : 'text-amber-200/70 hover:text-amber-100'
-          }`}
-        >
-          <span>SQL Script</span>
         </button>
       </div>
 
@@ -590,30 +565,137 @@ CREATE TABLE IF NOT EXISTS public.referrals (
         </form>
       )}
 
-      {/* 5. SQL Script Tab */}
-      {activeTab === 'sql_schema' && (
+      {/* 5. Users Management Tab */}
+      {activeTab === 'users' && (
         <div className="bg-[#211410] p-4 rounded-3xl border border-[#442f26] shadow-xl space-y-3 text-xs">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-amber-300 flex items-center gap-1.5">
-              <Database className="w-4 h-4 text-amber-400" />
-              <span>PostgreSQL / Supabase DDL Script</span>
-            </span>
-            <button
-              onClick={handleCopySql}
-              className="bg-amber-500 text-black font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 text-xs hover:bg-amber-400 cursor-pointer"
-            >
-              {sqlCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{sqlCopied ? 'Copied SQL' : 'Copy Script'}</span>
-            </button>
+            <h2 className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+              <Users className="w-4 h-4 text-amber-400" />
+              <span>User Database Management ({users.length})</span>
+            </h2>
           </div>
 
-          <p className="text-[11px] text-amber-300/70">
-            Copy and execute these SQL commands in PostgreSQL or Supabase SQL Editor:
-          </p>
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-amber-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              placeholder="Search user by name, email, referral code..."
+              className="w-full bg-[#140b08] border border-[#3e2a22] rounded-xl pl-9 pr-3 py-2.5 text-amber-100 placeholder-amber-300/40 font-mono"
+            />
+          </div>
 
-          <pre className="bg-[#100806] p-3 rounded-2xl border border-[#38251e] text-emerald-400 font-mono text-[10px] max-h-72 overflow-y-auto whitespace-pre-wrap">
-            {sqlCode}
-          </pre>
+          {/* Users List */}
+          <div className="space-y-3 mt-3">
+            {users
+              .filter(u =>
+                userSearch.trim() === '' ||
+                u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+                u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                (u.referralCode && u.referralCode.toLowerCase().includes(userSearch.toLowerCase()))
+              )
+              .map(u => (
+                <div
+                  key={u.id}
+                  className={`bg-[#140b08] p-3.5 rounded-2xl border space-y-2.5 transition-all ${
+                    u.isBanned ? 'border-rose-500/50 bg-rose-950/10' : 'border-[#38251e]'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center font-black text-white text-sm shadow overflow-hidden shrink-0 border border-amber-300/30">
+                        {u.avatar ? (
+                          <img src={u.avatar} alt={u.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{u.name.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-extrabold text-amber-100 flex items-center gap-1.5">
+                          <span>{u.name}</span>
+                          {u.role === 'admin' && (
+                            <span className="text-[9px] bg-amber-500/30 text-amber-300 px-1.5 rounded font-mono font-bold border border-amber-500/40">
+                              ADMIN
+                            </span>
+                          )}
+                          {u.isBanned && (
+                            <span className="text-[9px] bg-rose-500/30 text-rose-300 px-1.5 rounded font-mono font-bold border border-rose-500/40">
+                              BANNED
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-amber-300/60 font-mono">{u.email}</div>
+                      </div>
+                    </div>
+
+                    <div className="text-right font-mono">
+                      <div className="text-amber-400 font-extrabold">{u.balance.toLocaleString()} Coins</div>
+                      <div className="text-[10px] text-amber-300/60">Ref Code: {u.referralCode || 'N/A'}</div>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="pt-2 border-t border-[#2d1e18] flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const val = prompt(`Enter coin amount to ADD (+) or REMOVE (-) for ${u.name}:`, '10000');
+                          if (val !== null) {
+                            const num = parseInt(val, 10);
+                            if (!isNaN(num)) handleAdjustBalance(u.id, num);
+                          }
+                        }}
+                        className="bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                        title="Add/Subtract Coins"
+                      >
+                        <Coins className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Add Balance</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const val = prompt(`Enter referral count to ADD (+) for ${u.name}:`, '1');
+                          if (val !== null) {
+                            const num = parseInt(val, 10);
+                            if (!isNaN(num)) handleAdjustReferrals(u.id, num);
+                          }
+                        }}
+                        className="bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 border border-orange-500/40 px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                        title="Add Verified Referrals"
+                      >
+                        <UserPlus className="w-3.5 h-3.5 text-orange-400" />
+                        <span>Add Ref</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleBan(u.id, !!u.isBanned)}
+                        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer border ${
+                          u.isBanned
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
+                        }`}
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                        <span>{u.isBanned ? 'Unban User' : 'Ban User'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteUser(u.id, u.name)}
+                        className="bg-rose-950 text-rose-400 hover:bg-rose-900 border border-rose-800 px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                        title="Delete User"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
       )}
     </div>

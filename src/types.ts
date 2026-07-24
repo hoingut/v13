@@ -20,6 +20,8 @@ export interface User {
   createdAt: string;
   lastCheckInDate?: string; // YYYY-MM-DD
   checkInStreak?: number;
+  avatar?: string;
+  isBanned?: boolean;
 }
 
 export interface Task {
