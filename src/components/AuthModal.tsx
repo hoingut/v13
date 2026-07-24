@@ -21,7 +21,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [previewOtpNotice, setPreviewOtpNotice] = useState<string | null>(null);
 
   // Send OTP
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -39,9 +38,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
 
     if (res.success) {
       setStep('otp');
-      if (res.previewOtp) {
-        setPreviewOtpNotice(`[Dev Mode Test OTP]: ${res.previewOtp}`);
-      }
     } else {
       setErrorMessage(res.error || 'Failed to send verification email.');
     }
@@ -138,13 +134,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
           <div className="bg-rose-950/80 border border-rose-500/80 text-rose-200 text-xs p-3 rounded-2xl mb-3 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {/* Preview OTP Notice */}
-        {previewOtpNotice && (
-          <div className="bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs p-2.5 rounded-2xl mb-3 text-center font-mono font-bold">
-            {previewOtpNotice}
           </div>
         )}
 

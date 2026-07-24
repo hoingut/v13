@@ -222,14 +222,26 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
   const cleanEmail = email.toLowerCase().trim();
   const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  mockOtps.set(cleanEmail, { code: otpCode, expiresAt: Date.now() + 10 * 60 * 1000 });
+  const expiresAt = Date.now() + 10 * 60 * 1000;
+
+  mockOtps.set(cleanEmail, { code: otpCode, expiresAt });
+
+  // Persist in Supabase for cross-serverless lambda synchronization
+  try {
+    await supabase.from('otps').upsert({
+      email: cleanEmail,
+      code: otpCode,
+      expires_at: new Date(expiresAt).toISOString(),
+    });
+  } catch (err) {
+    console.error('Supabase OTP save error:', err);
+  }
 
   const emailResult = await sendOtpEmail(cleanEmail, otpCode);
   res.json({
     success: true,
     message: emailResult.message,
     provider: emailResult.providerUsed,
-    previewOtp: otpCode, // Provided for instant smooth testing in UI
   });
 });
 
@@ -242,15 +254,77 @@ app.post('/api/auth/register', async (req, res) => {
   }
 
   const cleanEmail = email.toLowerCase().trim();
+  const cleanOtp = String(otp || '').trim();
 
-  // Validate OTP
+  // Validate OTP from memory or Supabase
+  let isValidOtp = false;
   const otpEntry = mockOtps.get(cleanEmail);
-  if (!otpEntry || otpEntry.code !== otp || Date.now() > otpEntry.expiresAt) {
+  if (otpEntry && String(otpEntry.code).trim() === cleanOtp && Date.now() <= otpEntry.expiresAt) {
+    isValidOtp = true;
+  } else {
+    try {
+      const { data: dbOtp } = await supabase
+        .from('otps')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (dbOtp && String(dbOtp.code).trim() === cleanOtp) {
+        const expiresTime = new Date(dbOtp.expires_at).getTime();
+        if (Date.now() <= expiresTime) {
+          isValidOtp = true;
+        }
+      }
+    } catch (err) {
+      console.error('Supabase OTP check error:', err);
+    }
+  }
+
+  if (!isValidOtp) {
     return res.status(400).json({ error: 'Invalid or expired OTP code!' });
   }
 
   // Check existing user
-  if (mockUsers.has(cleanEmail)) {
+  let existingUser = mockUsers.get(cleanEmail);
+  if (!existingUser) {
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (dbUser) {
+        existingUser = {
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          role: dbUser.role || 'user',
+          balance: Number(dbUser.balance) || 0,
+          energy: dbUser.energy || 1000,
+          maxEnergy: dbUser.max_energy || 1000,
+          energyLevel: dbUser.energy_level || 1,
+          hitLevel: dbUser.hit_level || 1,
+          hitDamage: Number(dbUser.hit_damage) || 0.5,
+          subjectLevel: dbUser.subject_level || 1,
+          subjectHp: Number(dbUser.subject_hp) || 100,
+          subjectMaxHp: Number(dbUser.subject_max_hp) || 100,
+          referralCode: dbUser.referral_code || '',
+          referredBy: dbUser.referred_by || undefined,
+          deviceId: dbUser.device_id || '',
+          deviceName: dbUser.device_name || '',
+          lastActive: dbUser.last_active || new Date().toISOString(),
+          createdAt: dbUser.created_at || new Date().toISOString(),
+        };
+        mockUsers.set(existingUser.id, existingUser);
+        mockUsers.set(cleanEmail, existingUser);
+      }
+    } catch (err) {
+      console.error('Supabase check existing user error:', err);
+    }
+  }
+
+  if (existingUser) {
     return res.status(400).json({ error: 'User with this Gmail already exists. Please log in.' });
   }
 
@@ -286,7 +360,7 @@ app.post('/api/auth/register', async (req, res) => {
 
   const newUser: User = {
     id: userId,
-    name: name || 'NXB Hunter',
+    name: name || 'XN Hunter',
     email: cleanEmail,
     role: 'user',
     balance: 50, // Welcome signup bonus
@@ -308,6 +382,34 @@ app.post('/api/auth/register', async (req, res) => {
 
   mockUsers.set(userId, newUser);
   mockUsers.set(cleanEmail, newUser);
+
+  // Persist user in Supabase
+  try {
+    await supabase.from('users').upsert({
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      password: password || '',
+      role: newUser.role,
+      balance: newUser.balance,
+      energy: newUser.energy,
+      max_energy: newUser.maxEnergy,
+      energy_level: newUser.energyLevel,
+      hit_level: newUser.hitLevel,
+      hit_damage: newUser.hitDamage,
+      subject_level: newUser.subjectLevel,
+      subject_hp: newUser.subjectHp,
+      subject_max_hp: newUser.subjectMaxHp,
+      referral_code: newUser.referralCode,
+      referred_by: newUser.referredBy,
+      device_id: newUser.deviceId,
+      device_name: newUser.deviceName,
+      last_active: newUser.lastActive,
+      created_at: newUser.createdAt,
+    });
+  } catch (err) {
+    console.error('Supabase save user error:', err);
+  }
 
   // If referred, create Referral Record & evaluate verification rules
   if (referredByUserId) {
@@ -350,14 +452,52 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // 4. Auth: Login
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
 
   const cleanEmail = email.toLowerCase().trim();
-  const user = mockUsers.get(cleanEmail);
+  let user = mockUsers.get(cleanEmail);
+
+  if (!user) {
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+
+      if (dbUser) {
+        user = {
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          role: dbUser.role || 'user',
+          balance: Number(dbUser.balance) || 0,
+          energy: dbUser.energy || 1000,
+          maxEnergy: dbUser.max_energy || 1000,
+          energyLevel: dbUser.energy_level || 1,
+          hitLevel: dbUser.hit_level || 1,
+          hitDamage: Number(dbUser.hit_damage) || 0.5,
+          subjectLevel: dbUser.subject_level || 1,
+          subjectHp: Number(dbUser.subject_hp) || 100,
+          subjectMaxHp: Number(dbUser.subject_max_hp) || 100,
+          referralCode: dbUser.referral_code || '',
+          referredBy: dbUser.referred_by || undefined,
+          deviceId: dbUser.device_id || '',
+          deviceName: dbUser.device_name || '',
+          lastActive: dbUser.last_active || new Date().toISOString(),
+          createdAt: dbUser.created_at || new Date().toISOString(),
+        };
+        mockUsers.set(user.id, user);
+        mockUsers.set(cleanEmail, user);
+      }
+    } catch (err) {
+      console.error('Supabase fetch login user error:', err);
+    }
+  }
 
   if (!user) {
     return res.status(404).json({ error: 'No account found with this Gmail. Please sign up.' });
@@ -374,9 +514,48 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // 5. Game: Synchronize / Fetch User State
-app.get('/api/game/user/:userId', (req, res) => {
+app.get('/api/game/user/:userId', async (req, res) => {
   const { userId } = req.params;
-  const user = mockUsers.get(userId);
+  let user = mockUsers.get(userId);
+
+  if (!user) {
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (dbUser) {
+        user = {
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          role: dbUser.role || 'user',
+          balance: Number(dbUser.balance) || 0,
+          energy: dbUser.energy || 1000,
+          maxEnergy: dbUser.max_energy || 1000,
+          energyLevel: dbUser.energy_level || 1,
+          hitLevel: dbUser.hit_level || 1,
+          hitDamage: Number(dbUser.hit_damage) || 0.5,
+          subjectLevel: dbUser.subject_level || 1,
+          subjectHp: Number(dbUser.subject_hp) || 100,
+          subjectMaxHp: Number(dbUser.subject_max_hp) || 100,
+          referralCode: dbUser.referral_code || '',
+          referredBy: dbUser.referred_by || undefined,
+          deviceId: dbUser.device_id || '',
+          deviceName: dbUser.device_name || '',
+          lastActive: dbUser.last_active || new Date().toISOString(),
+          createdAt: dbUser.created_at || new Date().toISOString(),
+        };
+        mockUsers.set(user.id, user);
+        mockUsers.set(user.email, user);
+      }
+    } catch (err) {
+      console.error('Supabase fetch game user error:', err);
+    }
+  }
+
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
