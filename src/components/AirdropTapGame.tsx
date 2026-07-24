@@ -4,6 +4,9 @@ import { syncUserApi } from '../lib/api';
 import confetti from 'canvas-confetti';
 import { Zap, ShieldAlert, Sparkles, Flame, Clock } from 'lucide-react';
 
+import hedgehogImg from '../assets/images/hedgehog_mascot_1784869809278.jpg';
+import coinImg from '../assets/images/nxb_golden_coin_1784869821261.jpg';
+
 interface AirdropTapGameProps {
   user: User | null;
   onUpdateUser: (user: User) => void;
@@ -138,9 +141,12 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
       <div className="w-full flex flex-col items-center gap-1 my-2">
         <div className="flex items-center gap-3 bg-[#2c1d18]/90 backdrop-blur-xl px-5 py-2.5 rounded-3xl border border-[#543b30]/80 shadow-2xl">
           <img
-            src="/src/assets/images/nxb_golden_coin_1784869821261.jpg"
+            src={coinImg}
             alt="NXB Coin"
-            className="w-10 h-10 rounded-full shadow-lg border border-amber-400/50 animate-pulse"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="%23f59e0b"><circle cx="12" cy="12" r="10" stroke="%23fbbf24" stroke-width="2"/><text x="12" y="16" font-size="12" font-weight="bold" text-anchor="middle" fill="%23000">NXB</text></svg>';
+            }}
+            className="w-10 h-10 rounded-full shadow-lg border border-amber-400/50 animate-pulse object-cover"
           />
           <div className="flex flex-col">
             <span className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-100 to-amber-400 font-mono">
@@ -197,10 +203,25 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
           <div className="absolute inset-0 rounded-full border-4 border-dashed border-amber-500/30 animate-[spin_20s_linear_infinite] pointer-events-none" />
 
           {/* Subject Mascot Image */}
-          <div className="w-56 h-56 rounded-full overflow-hidden border-4 border-[#52382c] shadow-2xl relative bg-gradient-to-b from-[#3d2922] to-[#1c120e]">
+          <div className="w-56 h-56 rounded-full overflow-hidden border-4 border-[#52382c] shadow-2xl relative bg-gradient-to-b from-[#3d2922] to-[#1c120e] flex items-center justify-center">
             <img
-              src="/src/assets/images/hedgehog_mascot_1784869809278.jpg"
+              src={hedgehogImg}
               alt="HedHog Mascot Subject"
+              onError={(e) => {
+                // Inline golden hedgehog SVG fallback if asset load fails
+                const parent = e.currentTarget.parentElement;
+                if (parent) {
+                  e.currentTarget.style.display = 'none';
+                  const svgFallback = document.createElement('div');
+                  svgFallback.className = 'w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-600 via-orange-600 to-amber-800 text-white p-4 text-center';
+                  svgFallback.innerHTML = `
+                    <div class="text-5xl mb-1">🦔</div>
+                    <div class="font-black text-sm tracking-widest text-amber-200 uppercase">Hedgehog Mascot</div>
+                    <div class="text-[10px] text-amber-300 font-mono">Tap To Earn $NXB</div>
+                  `;
+                  parent.appendChild(svgFallback);
+                }
+              }}
               className="w-full h-full object-cover pointer-events-none drop-shadow-2xl"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />

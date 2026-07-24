@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckSquare, History, Wallet, User as UserIcon } from 'lucide-react';
 
-export type TabType = 'task' | 'history' | 'airdrop' | 'withdraw' | 'account' | 'top' | 'upgrades' | 'friends';
+export type TabType = 'task' | 'history' | 'airdrop' | 'withdraw' | 'account' | 'top' | 'upgrades' | 'friends' | 'admin';
 
 interface NavbarProps {
   activeTab: TabType;

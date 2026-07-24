@@ -10,16 +10,14 @@ import { AccountView } from './components/AccountView';
 import { LeaderboardView } from './components/LeaderboardView';
 import { UpgradesView } from './components/UpgradesView';
 import { ReferralView } from './components/ReferralView';
-import { AdminPanel } from './components/AdminPanel';
+import { WithdrawView } from './components/WithdrawView';
+import { AdminView } from './components/AdminView';
 import { AuthModal } from './components/AuthModal';
-import { WithdrawModal } from './components/WithdrawModal';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('airdrop');
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showAdminModal, setShowAdminModal] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [urlRefCode, setUrlRefCode] = useState<string>('');
 
   // Extract ?ref= Referral code from URL if present
@@ -95,15 +93,11 @@ export default function App() {
   };
 
   const handleTabChange = (tab: TabType) => {
-    if (tab === 'withdraw') {
-      if (!user) {
-        setShowAuthModal(true);
-      } else {
-        setShowWithdrawModal(true);
-      }
-    } else {
-      setActiveTab(tab);
+    if (tab === 'withdraw' && !user) {
+      setShowAuthModal(true);
+      return;
     }
+    setActiveTab(tab);
   };
 
   return (
@@ -117,15 +111,15 @@ export default function App() {
         <Header
           user={user}
           onOpenAuth={() => setShowAuthModal(true)}
-          onOpenAdmin={() => setShowAdminModal(true)}
-          onOpenWithdraw={() => setShowWithdrawModal(true)}
+          onOpenAdmin={() => setActiveTab('admin')}
+          onOpenWithdraw={() => handleTabChange('withdraw')}
           onSelectTab={handleTabChange}
           onLogout={handleLogout}
         />
 
         {/* Dynamic Body Views */}
         <main className="flex-1">
-          {(activeTab === 'airdrop' || activeTab === 'game') && (
+          {(activeTab === 'airdrop' || (activeTab as string) === 'game') && (
             <AirdropTapGame
               user={user}
               onUpdateUser={handleUserUpdate}
@@ -149,14 +143,26 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'withdraw' && (
+            <WithdrawView
+              user={user}
+              onUpdateUser={handleUserUpdate}
+              onOpenAuth={() => setShowAuthModal(true)}
+            />
+          )}
+
           {activeTab === 'account' && (
             <AccountView
               user={user}
               onOpenAuth={() => setShowAuthModal(true)}
-              onOpenWithdraw={() => setShowWithdrawModal(true)}
-              onOpenAdmin={() => setShowAdminModal(true)}
+              onOpenWithdraw={() => handleTabChange('withdraw')}
+              onOpenAdmin={() => setActiveTab('admin')}
               onLogout={handleLogout}
             />
+          )}
+
+          {activeTab === 'admin' && (
+            <AdminView />
           )}
 
           {activeTab === 'top' && <LeaderboardView />}
@@ -190,20 +196,6 @@ export default function App() {
           onClose={() => setShowAuthModal(false)}
           onSuccess={handleAuthSuccess}
           initialReferralCode={urlRefCode}
-        />
-      )}
-
-      {/* Admin Panel Modal */}
-      {showAdminModal && (
-        <AdminPanel onClose={() => setShowAdminModal(false)} />
-      )}
-
-      {/* Withdraw Modal */}
-      {showWithdrawModal && user && (
-        <WithdrawModal
-          user={user}
-          onClose={() => setShowWithdrawModal(false)}
-          onUpdateUser={handleUserUpdate}
         />
       )}
     </div>

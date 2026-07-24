@@ -130,10 +130,6 @@ export const Header: React.FC<HeaderProps> = ({
                       <span>XN Reward App</span>
                       <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                     </h3>
-                    <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                      <Smartphone className="w-3 h-3" />
-                      <span>1 Device = 1 Account</span>
-                    </p>
                   </div>
                 </div>
 
@@ -273,13 +269,8 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Footer inside drawer with Anti-Fraud Warning */}
+            {/* Footer inside drawer */}
             <div className="pt-3 border-t border-[#3d2921] space-y-2">
-              <div className="bg-red-950/40 p-2 rounded-xl border border-red-500/30 text-[10px] text-red-300 flex items-center gap-1.5 font-mono">
-                <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                <span>Strict: No VPN • 1 Account/Device • No Bots</span>
-              </div>
-
               {user && onLogout && (
                 <button
                   onClick={() => { setDrawerOpen(false); onLogout(); }}

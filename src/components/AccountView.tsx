@@ -215,33 +215,6 @@ export const AccountView: React.FC<AccountViewProps> = ({
         </div>
       </div>
 
-      {/* Account Info List */}
-      <div className="bg-[#1f130f] rounded-3xl border border-[#3c2921] p-4 space-y-3 text-xs">
-        <div className="flex items-center justify-between pb-2 border-b border-[#3c2921]">
-          <span className="text-amber-300/70 flex items-center gap-2">
-            <Smartphone className="w-4 h-4 text-amber-400" />
-            <span>Device Lock Status</span>
-          </span>
-          <span className="font-mono text-emerald-400 font-bold">1 Device / 1 Account Locked ✓</span>
-        </div>
-
-        <div className="flex items-center justify-between pb-2 border-b border-[#3c2921]">
-          <span className="text-amber-300/70 flex items-center gap-2">
-            <Award className="w-4 h-4 text-amber-400" />
-            <span>Daily Streak</span>
-          </span>
-          <span className="font-mono text-amber-200 font-bold">{user.checkInStreak || 0} Days Active</span>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-amber-300/70 flex items-center gap-2">
-            <Wallet className="w-4 h-4 text-amber-400" />
-            <span>User Role</span>
-          </span>
-          <span className="font-mono text-amber-200 uppercase font-bold">{user.role}</span>
-        </div>
-      </div>
-
       {/* Action Buttons */}
       <div className="space-y-2">
         {user.role === 'admin' && (
