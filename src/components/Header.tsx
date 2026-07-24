@@ -244,9 +244,15 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   )}
 
-                  <div className="mt-3 pt-2 border-t border-[#3e281e] flex items-center justify-between text-xs font-mono">
-                    <span className="text-amber-300/70">Coins Balance:</span>
-                    <span className="font-black text-amber-400">{user.balance.toLocaleString()} Coins</span>
+                  <div className="mt-3 pt-2 border-t border-[#3e281e] flex flex-col gap-1 text-xs font-mono">
+                    <div className="flex items-center justify-between">
+                      <span className="text-amber-300/70">Coins Balance:</span>
+                      <span className="font-black text-amber-400">{user.balance.toLocaleString()} Coins</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-emerald-400/80">Taka Balance:</span>
+                      <span className="font-black text-emerald-300">৳ {(user.takaBalance || 0).toLocaleString()} BDT</span>
+                    </div>
                   </div>
                 </div>
               ) : (

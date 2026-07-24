@@ -47,7 +47,7 @@ export default function App() {
     userRef.current = user;
   }, [user]);
 
-  // Periodic 30-Second Auto Sync
+  // Periodic 10-Second Auto Sync
   useEffect(() => {
     const syncInterval = setInterval(async () => {
       const currentUser = userRef.current;
@@ -58,10 +58,10 @@ export default function App() {
             setUser(prev => (prev ? { ...prev, energy: res.user.energy } : res.user));
           }
         } catch (err) {
-          console.error('Periodic 30s auto sync error:', err);
+          console.error('Periodic 10s auto sync error:', err);
         }
       }
-    }, 30000);
+    }, 10000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && userRef.current && userRef.current.id) {
@@ -155,6 +155,7 @@ export default function App() {
           {activeTab === 'account' && (
             <AccountView
               user={user}
+              onUpdateUser={handleUserUpdate}
               onOpenAuth={() => setShowAuthModal(true)}
               onOpenWithdraw={() => handleTabChange('withdraw')}
               onOpenAdmin={() => setActiveTab('admin')}

@@ -235,6 +235,7 @@ async function getUserById(userIdOrEmail: string): Promise<User | null> {
         email: dbUser.email,
         role: dbUser.role || 'user',
         balance: Number(dbUser.balance) || 0,
+        takaBalance: Number(dbUser.taka_balance) || 0,
         energy: dbUser.energy || 1000,
         maxEnergy: dbUser.max_energy || 1000,
         energyLevel: dbUser.energy_level || 1,
@@ -275,6 +276,7 @@ async function saveUserToSupabase(user: User): Promise<void> {
       email: user.email,
       role: user.role,
       balance: user.balance,
+      taka_balance: user.takaBalance || 0,
       energy: user.energy,
       max_energy: user.maxEnergy,
       energy_level: user.energyLevel,
@@ -684,6 +686,9 @@ app.post('/api/game/sync', async (req, res) => {
     if (typeof userState.balance === 'number' && !isNaN(userState.balance)) {
       user.balance = Math.max(user.balance, userState.balance);
     }
+    if (typeof userState.takaBalance === 'number' && !isNaN(userState.takaBalance)) {
+      user.takaBalance = Math.max(user.takaBalance || 0, userState.takaBalance);
+    }
     if (typeof userState.energy === 'number' && !isNaN(userState.energy)) {
       user.energy = userState.energy;
     }
@@ -837,6 +842,10 @@ app.post('/api/checkin/claim', async (req, res) => {
   user.checkInStreak = newStreak;
   user.lastActive = new Date().toISOString();
 
+  // Update in-memory cache
+  mockUsers.set(user.id, user);
+  if (user.email) mockUsers.set(user.email.toLowerCase(), user);
+
   await saveUserToSupabase(user);
 
   res.json({
@@ -916,8 +925,8 @@ app.post('/api/tasks/submit', async (req, res) => {
   };
 
   if (!task.requiresProof) {
-    // Auto approve
-    user.balance += task.reward;
+    // Auto approve task reward in Taka
+    user.takaBalance = (user.takaBalance || 0) + task.reward;
   }
 
   mockSubmissions.push(submission);
@@ -926,8 +935,10 @@ app.post('/api/tasks/submit', async (req, res) => {
   res.json({
     success: true,
     submission,
+    user,
     newBalance: user.balance,
-    message: task.requiresProof ? 'Proof screenshot submitted for admin review!' : 'Task completed and reward added!',
+    newTakaBalance: user.takaBalance,
+    message: task.requiresProof ? 'Proof screenshot submitted for admin review!' : 'Task completed and ৳ Taka reward added!',
   });
 });
 
@@ -970,8 +981,8 @@ app.get('/api/referrals/my/:userId', async (req, res) => {
         if (activeWithinLast10Hours || completedTaskAndHighBalance) {
           ref.status = 'verified';
           ref.verifiedAt = new Date().toISOString();
-          // Credit 10 Taka (5000 Coins) for verified referral
-          user.balance += 5000;
+          // Credit 10 Taka for verified referral
+          user.takaBalance = (user.takaBalance || 0) + 10;
         } else if (elapsedHours >= 12) {
           // If 12 hours passed without meeting conditions, mark failed
           ref.status = 'failed';
@@ -1026,7 +1037,7 @@ app.get('/api/admin/submissions', (req, res) => {
   res.json({ success: true, submissions: mockSubmissions });
 });
 
-app.post('/api/admin/submissions/review', (req, res) => {
+app.post('/api/admin/submissions/review', async (req, res) => {
   const { submissionId, status, rejectionReason } = req.body;
   const sub = mockSubmissions.find(s => s.id === submissionId);
 
@@ -1039,12 +1050,11 @@ app.post('/api/admin/submissions/review', (req, res) => {
   if (rejectionReason) sub.rejectionReason = rejectionReason;
 
   if (status === 'approved') {
-    const user = mockUsers.get(sub.userId);
+    const user = mockUsers.get(sub.userId) || await getUserById(sub.userId);
     const task = mockTasks.find(t => t.id === sub.taskId);
     if (user && task) {
-      // 1 Taka = 500 coins (1k coins = 2 Taka)
-      const rewardCoins = Math.round(task.reward * 500);
-      user.balance += rewardCoins;
+      user.takaBalance = (user.takaBalance || 0) + task.reward;
+      await saveUserToSupabase(user);
     }
   }
 
@@ -1073,9 +1083,9 @@ app.post('/api/admin/tasks', (req, res) => {
 
 // 16. Withdrawal Endpoints
 app.post('/api/withdraw/request', async (req, res) => {
-  const { userId, paymentMethod, accountNumber, coinsAmount } = req.body;
+  const { userId, paymentMethod, accountNumber, coinsAmount, takaAmount, withdrawType } = req.body;
 
-  if (!userId || !paymentMethod || !accountNumber || !coinsAmount) {
+  if (!userId || !paymentMethod || !accountNumber) {
     return res.status(400).json({ error: 'All fields are required!' });
   }
 
@@ -1105,43 +1115,68 @@ app.post('/api/withdraw/request', async (req, res) => {
     });
   }
 
-  // 2. Minimum coins check based on date
-  const targetDate = new Date('2026-08-15T00:00:00');
-  const isBeforeAug15 = new Date() < targetDate;
-  const minCoinsRequired = isBeforeAug15 ? 250000 : 100000;
+  const isTakaWithdraw = withdrawType === 'taka';
+  let finalCoinsAmount = 0;
+  let finalTakaAmount = 0;
 
-  if (coinsAmount < minCoinsRequired) {
-    const minText = isBeforeAug15 ? '২৫০k (250,000)' : '১০০k (100,000)';
-    return res.status(400).json({
-      error: `১৫ আগস্ট এর ${isBeforeAug15 ? 'আগে' : 'পর'} উইথড্র করতে সর্বনিম্ন ${minText} Coin লাগবে!`
-    });
+  if (isTakaWithdraw) {
+    // Taka Withdrawal Rule: Minimum 300 Taka required
+    const reqTaka = Number(takaAmount) || 0;
+    if (reqTaka < 300) {
+      return res.status(400).json({
+        error: 'টাকা উইথড্র করতে সর্বনিম্ন ৩০০ Taka লাগবে!'
+      });
+    }
+
+    const currentTaka = user.takaBalance || 0;
+    if (currentTaka < reqTaka) {
+      return res.status(400).json({
+        error: `আপনার অ্যাকাউন্টে পর্যাপ্ত Taka নেই! (বর্তমান Taka ব্যালেন্স: ৳${currentTaka.toLocaleString()} BDT)`
+      });
+    }
+
+    finalTakaAmount = reqTaka;
+    finalCoinsAmount = 0;
+    user.takaBalance = Math.max(0, currentTaka - reqTaka);
+  } else {
+    // Coins Withdrawal Rule: 1k Coins = 2 Taka. Min 250k before Aug 15 / 100k after Aug 15
+    const reqCoins = Number(coinsAmount) || 0;
+    const targetDate = new Date('2026-08-15T00:00:00');
+    const isBeforeAug15 = new Date() < targetDate;
+    const minCoinsRequired = isBeforeAug15 ? 250000 : 100000;
+
+    if (reqCoins < minCoinsRequired) {
+      const minText = isBeforeAug15 ? '২৫০k (250,000)' : '১০০k (100,000)';
+      return res.status(400).json({
+        error: `১৫ আগস্ট এর ${isBeforeAug15 ? 'আগে' : 'পর'} উইথড্র করতে সর্বনিম্ন ${minText} Coin লাগবে!`
+      });
+    }
+
+    if (user.balance < reqCoins) {
+      return res.status(400).json({
+        error: `আপনার অ্যাকাউন্টে পর্যাপ্ত Coin নেই! (বর্তমান ব্যালেন্স: ${user.balance.toLocaleString()} Coin)`
+      });
+    }
+
+    finalCoinsAmount = reqCoins;
+    finalTakaAmount = Math.floor((reqCoins / 1000) * 2);
+    user.balance -= reqCoins;
   }
 
-  // 3. User balance check
-  if (user.balance < coinsAmount) {
-    return res.status(400).json({
-      error: `আপনার অ্যাকাউন্টে পর্যাপ্ত Coin নেই! (বর্তমান ব্যালেন্স: ${user.balance.toLocaleString()} Coin)`
-    });
-  }
-
-  // Deduct coins from balance
-  user.balance -= coinsAmount;
   mockUsers.set(user.id, user);
   if (user.email) mockUsers.set(user.email.toLowerCase(), user);
   await saveUserToSupabase(user);
-
-  // Rate: 1k coins = 2 Taka
-  const takaAmount = Math.floor((coinsAmount / 1000) * 2);
 
   const withdrawalRecord: WithdrawalRecord = {
     id: `wth_${Date.now()}`,
     userId: user.id,
     userName: user.name,
     userEmail: user.email,
+    withdrawType: isTakaWithdraw ? 'taka' : 'coins',
     paymentMethod,
     accountNumber,
-    coinsAmount,
-    takaAmount,
+    coinsAmount: finalCoinsAmount,
+    takaAmount: finalTakaAmount,
     status: 'pending',
     requestedAt: new Date().toISOString(),
   };

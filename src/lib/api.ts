@@ -62,9 +62,11 @@ export async function loginApi(email: string, password?: string) {
 
 export async function requestWithdrawalApi(data: {
   userId: string;
-  paymentMethod: 'bKash' | 'Nagad' | 'Rocket';
+  paymentMethod: 'bKash' | 'Nagad' | 'Rocket' | 'Binance';
   accountNumber: string;
-  coinsAmount: number;
+  coinsAmount?: number;
+  takaAmount?: number;
+  withdrawType?: 'coins' | 'taka';
 }) {
   const res = await fetch('/api/withdraw/request', {
     method: 'POST',
@@ -219,11 +221,11 @@ export async function fetchAdminUsersApi(query?: string) {
   return res.json();
 }
 
-export async function adjustUserBalanceApi(userId: string, amount: number, action: 'add' | 'subtract') {
+export async function adjustUserBalanceApi(userId: string, amount: number, action: 'add' | 'subtract', balanceType: 'coins' | 'taka' = 'coins') {
   const res = await fetch('/api/admin/users/adjust-balance', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId, amount, action }),
+    body: JSON.stringify({ userId, amount, action, balanceType }),
   });
   return res.json();
 }

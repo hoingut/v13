@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, WithdrawalRecord } from '../types';
 import { requestWithdrawalApi, fetchWithdrawalsApi, fetchReferralsApi } from '../lib/api';
-import { Wallet, AlertCircle, CheckCircle, Clock, ArrowRight, ShieldAlert, Gift, Calendar, DollarSign } from 'lucide-react';
+import { Wallet, AlertCircle, CheckCircle, Clock, ArrowRight, ShieldAlert, Gift, Calendar, DollarSign, Coins, Landmark } from 'lucide-react';
 
 interface WithdrawViewProps {
   user: User | null;
@@ -10,9 +10,11 @@ interface WithdrawViewProps {
 }
 
 export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, onOpenAuth }) => {
-  const [paymentMethod, setPaymentMethod] = useState<'bKash' | 'Nagad' | 'Rocket'>('bKash');
+  const [withdrawType, setWithdrawType] = useState<'coins' | 'taka'>('coins');
+  const [paymentMethod, setPaymentMethod] = useState<'bKash' | 'Nagad' | 'Rocket' | 'Binance'>('bKash');
   const [accountNumber, setAccountNumber] = useState('');
-  const [coinsAmount, setCoinsAmount] = useState<number>(250000);
+  const [coinsAmountInput, setCoinsAmountInput] = useState<string>('250000');
+  const [takaAmountInput, setTakaAmountInput] = useState<string>('300');
   const [referralsCount, setReferralsCount] = useState<number>(0);
   const [myWithdrawals, setMyWithdrawals] = useState<WithdrawalRecord[]>([]);
 
@@ -31,7 +33,7 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
   useEffect(() => {
     if (user) {
       loadData();
-      setCoinsAmount(minCoinsRequired);
+      setCoinsAmountInput(String(minCoinsRequired));
     }
   }, [user, minCoinsRequired]);
 
@@ -50,8 +52,11 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
     }
   };
 
-  // Calculated Taka: 1k coins = 2 Taka
-  const calculatedTaka = Math.floor((coinsAmount / 1000) * 2);
+  const parsedCoinsAmount = Number(coinsAmountInput) || 0;
+  const parsedTakaAmount = Number(takaAmountInput) || 0;
+
+  // Calculated Taka for Coin Withdrawal: 1k coins = 2 Taka
+  const calculatedTakaFromCoins = Math.floor((parsedCoinsAmount / 1000) * 2);
 
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,33 +74,48 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
       return;
     }
 
-    // Rule 2: Minimum Coin condition based on date
-    if (coinsAmount < minCoinsRequired) {
-      if (isBeforeAug15) {
-        setErrorMessage(`১৫ আগস্ট এর আগে উইথড্র করতে সর্বনিম্ন ২৫০k (250,000) Coin লাগবে!`);
-      } else {
-        setErrorMessage(`১৫ আগস্ট এর পর উইথড্র করতে সর্বনিম্ন ১০০k (100,000) Coin লাগবে!`);
+    if (!accountNumber || accountNumber.trim().length < 5) {
+      setErrorMessage(`সঠিক ${paymentMethod} অ্যাকাউন্ট নম্বর বা ওয়ালেট অ্যাড্রেস লিখুন।`);
+      return;
+    }
+
+    if (withdrawType === 'coins') {
+      // Coins Rule: Minimum Coin condition based on date
+      if (parsedCoinsAmount < minCoinsRequired) {
+        if (isBeforeAug15) {
+          setErrorMessage(`১৫ আগস্ট এর আগে উইথড্র করতে সর্বনিম্ন ২৫০k (250,000) Coin লাগবে!`);
+        } else {
+          setErrorMessage(`১৫ আগস্ট এর পর উইথড্র করতে সর্বনিম্ন ১০০k (100,000) Coin লাগবে!`);
+        }
+        return;
       }
-      return;
-    }
 
-    // Rule 3: User balance check
-    if (user.balance < coinsAmount) {
-      setErrorMessage(`আপনার অ্যাকাউন্টে পর্যাপ্ত Coin নেই! (বর্তমান ব্যালেন্স: ${user.balance.toLocaleString()} Coin)`);
-      return;
-    }
+      if (user.balance < parsedCoinsAmount) {
+        setErrorMessage(`আপনার অ্যাকাউন্টে পর্যাপ্ত Coin নেই! (বর্তমান ব্যালেন্স: ${user.balance.toLocaleString()} Coin)`);
+        return;
+      }
+    } else {
+      // Taka Rule: Minimum 300 Taka
+      if (parsedTakaAmount < 300) {
+        setErrorMessage(`টাকা উইথড্র করতে সর্বনিম্ন ৳৩০০ Taka লাগবে!`);
+        return;
+      }
 
-    if (!accountNumber || accountNumber.trim().length < 11) {
-      setErrorMessage(`সঠিক ${paymentMethod} অ্যাকাউন্ট নম্বর লিখুন (১১ ডিজিট)।`);
-      return;
+      const userTaka = user.takaBalance || 0;
+      if (userTaka < parsedTakaAmount) {
+        setErrorMessage(`আপনার অ্যাকাউন্টে পর্যাপ্ত Taka নেই! (বর্তমান Taka ব্যালেন্স: ৳${userTaka.toLocaleString()} BDT)`);
+        return;
+      }
     }
 
     setLoading(true);
     const res = await requestWithdrawalApi({
       userId: user.id,
+      withdrawType,
       paymentMethod,
       accountNumber: accountNumber.trim(),
-      coinsAmount,
+      coinsAmount: withdrawType === 'coins' ? parsedCoinsAmount : 0,
+      takaAmount: withdrawType === 'taka' ? parsedTakaAmount : calculatedTakaFromCoins,
     });
     setLoading(false);
 
@@ -141,8 +161,33 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
         <div>
           <h1 className="text-lg font-black text-amber-100">উইথড্র প্যানেল (Withdrawal Page)</h1>
           <p className="text-xs text-emerald-400 font-mono font-bold">
-            ১k Coin = ২ টাকা | বিকাশ / নগদ / রকেট
+            bKash | Nagad | Rocket | Binance
           </p>
+        </div>
+      </div>
+
+      {/* Dual Balance Cards Header */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-gradient-to-br from-[#271a14] to-[#170e0b] p-3.5 rounded-3xl border border-amber-500/30 shadow-lg relative overflow-hidden">
+          <div className="text-[10px] text-amber-400 font-extrabold uppercase tracking-wider flex items-center gap-1 mb-1">
+            <Coins className="w-3.5 h-3.5 text-amber-400" />
+            <span>Coins Balance</span>
+          </div>
+          <div className="text-lg font-black text-amber-100 font-mono">
+            {user.balance.toLocaleString()}
+          </div>
+          <p className="text-[9px] text-amber-300/60 mt-0.5">Earned from Tap & Game</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-[#1a261a] to-[#0e170e] p-3.5 rounded-3xl border border-emerald-500/30 shadow-lg relative overflow-hidden">
+          <div className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1 mb-1">
+            <Landmark className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Taka Balance</span>
+          </div>
+          <div className="text-lg font-black text-emerald-300 font-mono">
+            ৳ {(user.takaBalance || 0).toLocaleString()} BDT
+          </div>
+          <p className="text-[9px] text-emerald-400/70 mt-0.5">Earned from Tasks & Referrals</p>
         </div>
       </div>
 
@@ -151,7 +196,7 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
         <div className="flex items-center justify-between pb-2 border-b border-[#3e271e]">
           <span className="font-extrabold text-sm text-amber-200 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-amber-400" />
-            <span>অফিশিয়াল উইথড্র লিমিট ও রেট</span>
+            <span>অফিশিয়াল উইথড্র নিয়মাবলি</span>
           </span>
           <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-full font-bold border border-amber-500/30">
             {isBeforeAug15 ? '১৫ আগস্ট এর আগে' : '১৫ আগস্ট এর পর'}
@@ -160,15 +205,15 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
 
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="bg-[#170e0b] p-3 rounded-2xl border border-amber-500/30 space-y-1">
-            <div className="text-[10px] text-amber-400 font-bold uppercase">১৫ আগস্ট এর আগে:</div>
+            <div className="text-[10px] text-amber-400 font-bold uppercase">Coin উইথড্র (১৫ Aug আগে):</div>
             <div className="text-sm font-black text-amber-100 font-mono">২৫০k Coin</div>
-            <div className="text-[11px] text-emerald-400 font-bold font-mono">= ৫০০ টাকা উইথড্র</div>
+            <div className="text-[11px] text-emerald-400 font-bold font-mono">= ৫০০ টাকা</div>
           </div>
 
-          <div className="bg-[#170e0b] p-3 rounded-2xl border border-orange-500/30 space-y-1">
-            <div className="text-[10px] text-orange-400 font-bold uppercase">১৫ আগস্ট এর পর:</div>
-            <div className="text-sm font-black text-amber-100 font-mono">১০০k Coin</div>
-            <div className="text-[11px] text-emerald-400 font-bold font-mono">= ২০০ টাকা উইথড্র</div>
+          <div className="bg-[#170e0b] p-3 rounded-2xl border border-emerald-500/30 space-y-1">
+            <div className="text-[10px] text-emerald-400 font-bold uppercase">Taka উইথড্র নিয়ম:</div>
+            <div className="text-sm font-black text-emerald-300 font-mono">সর্বনিম্ন ৳৩০০</div>
+            <div className="text-[11px] text-amber-300 font-bold font-mono">Task & Refer reward</div>
           </div>
         </div>
 
@@ -210,17 +255,51 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
 
       {/* Withdrawal Form */}
       <form onSubmit={handleWithdrawSubmit} className="bg-[#211410] p-4 rounded-3xl border border-[#442f26] shadow-xl space-y-3 text-xs">
+        {/* Withdraw Type Switcher */}
         <div>
-          <label className="font-bold text-amber-300 block mb-1">পেমেন্ট মেথড সিলেক্ট করুন (Payment Method)</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(['bKash', 'Nagad', 'Rocket'] as const).map(m => (
+          <label className="font-bold text-amber-300 block mb-1">উইথড্র ক্যাটাগরি সিলেক্ট করুন</label>
+          <div className="grid grid-cols-2 gap-2 bg-[#140b08] p-1 rounded-2xl border border-[#38251e]">
+            <button
+              type="button"
+              onClick={() => setWithdrawType('coins')}
+              className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                withdrawType === 'coins'
+                  ? 'bg-amber-500 text-black shadow-md'
+                  : 'text-amber-200/60 hover:text-amber-100'
+              }`}
+            >
+              <Coins className="w-4 h-4" />
+              <span>Coin Withdrawal</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setWithdrawType('taka')}
+              className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                withdrawType === 'taka'
+                  ? 'bg-emerald-500 text-black shadow-md'
+                  : 'text-emerald-200/60 hover:text-emerald-100'
+              }`}
+            >
+              <Landmark className="w-4 h-4" />
+              <span>Taka Withdrawal</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Payment Methods */}
+        <div>
+          <label className="font-bold text-amber-300 block mb-1">পেমেন্ট মেথড (Payment Method)</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {(['bKash', 'Nagad', 'Rocket', 'Binance'] as const).map(m => (
               <button
                 type="button"
                 key={m}
                 onClick={() => setPaymentMethod(m)}
-                className={`py-2.5 rounded-2xl text-xs font-black border transition-all cursor-pointer ${
+                className={`py-2.5 rounded-2xl text-[11px] font-black border transition-all cursor-pointer ${
                   paymentMethod === m
-                    ? 'bg-amber-500 text-black border-amber-300 shadow-md scale-102'
+                    ? m === 'Binance'
+                      ? 'bg-amber-400 text-black border-amber-200 shadow-md scale-102 font-mono'
+                      : 'bg-amber-500 text-black border-amber-300 shadow-md scale-102'
                     : 'bg-[#140b08] text-amber-200/80 border-[#38251e] hover:border-amber-500/40'
                 }`}
               >
@@ -230,44 +309,68 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
           </div>
         </div>
 
+        {/* Account / Address Input (Empty default, no autofill) */}
         <div>
           <label className="font-bold text-amber-300 block mb-1">
-            {paymentMethod} অ্যাকাউন্ট নম্বর (Account Number)
+            {paymentMethod === 'Binance' ? 'Binance Pay ID / USDT Wallet Address' : `${paymentMethod} অ্যাকাউন্ট নম্বর (Account Number)`}
           </label>
           <input
             type="text"
             required
             value={accountNumber}
             onChange={e => setAccountNumber(e.target.value)}
-            placeholder="017xxxxxxxx"
+            placeholder={paymentMethod === 'Binance' ? 'e.g. 123456789 or T...' : '017xxxxxxxx'}
             className="w-full bg-[#140b08] border border-[#3e2a22] rounded-2xl px-3.5 py-3 text-amber-100 font-mono focus:outline-none focus:border-amber-500 text-sm"
           />
         </div>
 
-        <div>
-          <label className="font-bold text-amber-300 block mb-1 flex justify-between">
-            <span>উইথড্র করতে চাওয়া Coin সংখ্যা</span>
-            <span className="text-[10px] text-amber-400 font-mono font-bold">
-              ব্যালেন্স: {user.balance.toLocaleString()} Coins
-            </span>
-          </label>
-          <input
-            type="number"
-            required
-            min={minCoinsRequired}
-            value={coinsAmount}
-            onChange={e => setCoinsAmount(Number(e.target.value))}
-            className="w-full bg-[#140b08] border border-[#3e2a22] rounded-2xl px-3.5 py-3 text-amber-100 font-mono focus:outline-none focus:border-amber-500 text-base font-bold"
-          />
-        </div>
+        {/* Amount Input based on type */}
+        {withdrawType === 'coins' ? (
+          <div>
+            <label className="font-bold text-amber-300 block mb-1 flex justify-between">
+              <span>উইথড্র Coin সংখ্যা</span>
+              <span className="text-[10px] text-amber-400 font-mono font-bold">
+                ব্যালেন্স: {user.balance.toLocaleString()} Coins
+              </span>
+            </label>
+            <input
+              type="number"
+              required
+              min={minCoinsRequired}
+              value={coinsAmountInput}
+              onChange={e => setCoinsAmountInput(e.target.value)}
+              className="w-full bg-[#140b08] border border-[#3e2a22] rounded-2xl px-3.5 py-3 text-amber-100 font-mono focus:outline-none focus:border-amber-500 text-base font-bold"
+            />
 
-        {/* Calculated Taka Display */}
-        <div className="bg-[#140b08] p-3.5 rounded-2xl border border-emerald-500/30 flex justify-between items-center text-xs">
-          <span className="text-amber-200 font-bold">প্রাপ্য ক্যাশ টাকা (BDT Taka):</span>
-          <span className="text-xl font-black text-emerald-400 font-mono">
-            ৳ {calculatedTaka} BDT
-          </span>
-        </div>
+            {/* Calculated Taka Display */}
+            <div className="bg-[#140b08] p-3 rounded-2xl border border-emerald-500/30 flex justify-between items-center text-xs mt-2">
+              <span className="text-amber-200 font-bold">প্রাপ্য টাকা (1k Coin = ৳2 Taka):</span>
+              <span className="text-base font-black text-emerald-400 font-mono">
+                ৳ {calculatedTakaFromCoins} BDT
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="font-bold text-emerald-300 block mb-1 flex justify-between">
+              <span>উইথড্র Taka পরিমাণ (BDT)</span>
+              <span className="text-[10px] text-emerald-400 font-mono font-bold">
+                ব্যালেন্স: ৳{(user.takaBalance || 0).toLocaleString()} BDT
+              </span>
+            </label>
+            <input
+              type="number"
+              required
+              min={300}
+              value={takaAmountInput}
+              onChange={e => setTakaAmountInput(e.target.value)}
+              className="w-full bg-[#140b08] border border-emerald-500/30 rounded-2xl px-3.5 py-3 text-emerald-300 font-mono focus:outline-none focus:border-emerald-500 text-base font-bold"
+            />
+            <p className="text-[10px] text-emerald-400/70 mt-1 font-mono">
+              * সর্বনিম্ন ৳৩০০ টাকা এবং ৪ টি রেফার থাকতে হবে।
+            </p>
+          </div>
+        )}
 
         <button
           type="submit"
@@ -297,7 +400,11 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
                 <div>
                   <p className="font-extrabold text-amber-100">{w.paymentMethod}: {w.accountNumber}</p>
                   <p className="text-[11px] text-amber-300/70 font-mono mt-0.5">
-                    {w.coinsAmount.toLocaleString()} Coins = <strong className="text-emerald-400 font-black">৳ {w.takaAmount} BDT</strong>
+                    {w.withdrawType === 'taka' ? (
+                      <strong className="text-emerald-400 font-black">৳ {w.takaAmount} BDT (Taka Balance)</strong>
+                    ) : (
+                      <>{w.coinsAmount.toLocaleString()} Coins = <strong className="text-emerald-400 font-black">৳ {w.takaAmount} BDT</strong></>
+                    )}
                   </p>
                 </div>
                 <div>

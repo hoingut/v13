@@ -4,6 +4,7 @@ export interface User {
   email: string;
   role: 'user' | 'admin';
   balance: number; // $NXB coins
+  takaBalance?: number; // ৳ Taka balance (earned from tasks & referrals)
   energy: number; // Current charge points
   maxEnergy: number; // Max charge capacity
   energyLevel: number; // Upgrade level for energy capacity
@@ -94,7 +95,8 @@ export interface WithdrawalRecord {
   userId: string;
   userName: string;
   userEmail: string;
-  paymentMethod: 'bKash' | 'Nagad' | 'Rocket';
+  withdrawType?: 'coins' | 'taka';
+  paymentMethod: 'bKash' | 'Nagad' | 'Rocket' | 'Binance';
   accountNumber: string;
   coinsAmount: number;
   takaAmount: number;

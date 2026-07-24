@@ -66,7 +66,11 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
 
     if (res.success) {
       setMessage(res.message);
-      if (res.newBalance !== undefined) {
+      if (res.user) {
+        onUpdateUser(res.user);
+      } else if (res.newTakaBalance !== undefined) {
+        onUpdateUser({ ...user, takaBalance: res.newTakaBalance });
+      } else if (res.newBalance !== undefined) {
         onUpdateUser({ ...user, balance: res.newBalance });
       }
       setSelectedTask(null);
