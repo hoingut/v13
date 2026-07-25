@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SystemSettings, TaskSubmission, WithdrawalRecord, User } from '../types';
+import { SystemSettings, TaskSubmission, WithdrawalRecord, User, Task } from '../types';
 import {
   fetchAdminSettingsApi,
   updateAdminSettingsApi,
@@ -13,16 +13,21 @@ import {
   adjustUserReferralsApi,
   toggleUserBanApi,
   deleteUserApi,
+  fetchTasksApi,
+  updateAdminTaskApi,
+  deleteAdminTaskApi,
 } from '../lib/api';
-import { ShieldCheck, Key, Mail, CheckCircle, XCircle, Plus, Sparkles, Image as ImageIcon, Wallet, Lock, RefreshCw, Users, Search, Ban, Trash2, Coins, UserPlus } from 'lucide-react';
+import { ShieldCheck, Key, Mail, CheckCircle, XCircle, Plus, Sparkles, Image as ImageIcon, Wallet, Lock, RefreshCw, Users, Search, Ban, Trash2, Coins, UserPlus, Edit3, CheckSquare } from 'lucide-react';
 
 export const AdminView: React.FC = () => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [userSearch, setUserSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'withdrawals' | 'submissions' | 'users' | 'add_task' | 'settings'>('withdrawals');
+  const [activeTab, setActiveTab] = useState<'withdrawals' | 'submissions' | 'users' | 'add_task' | 'manage_tasks' | 'settings'>('withdrawals');
 
   // Form states
   const [imgbbKey, setImgbbKey] = useState('');
@@ -52,8 +57,15 @@ export const AdminView: React.FC = () => {
 
   const loadAllData = async () => {
     setLoadingData(true);
-    await Promise.all([loadSettings(), loadSubmissions(), loadWithdrawals(), loadUsers()]);
+    await Promise.all([loadSettings(), loadSubmissions(), loadWithdrawals(), loadUsers(), loadTasks()]);
     setLoadingData(false);
+  };
+
+  const loadTasks = async () => {
+    const res = await fetchTasksApi();
+    if (res.success && res.tasks) {
+      setTasks(res.tasks);
+    }
   };
 
   const loadUsers = async () => {
@@ -188,9 +200,61 @@ export const AdminView: React.FC = () => {
       setTaskDesc('');
       setTaskReward(500);
       setTaskUrl('');
+      loadTasks();
     } else {
       setMessage(`Failed to create task: ${res.error}`);
     }
+  };
+
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask || !taskTitle || taskReward <= 0) return;
+
+    const res = await updateAdminTaskApi(editingTask.id, {
+      title: taskTitle.trim(),
+      description: taskDesc.trim(),
+      reward: taskReward,
+      type: taskType,
+      category: taskCategory,
+      actionUrl: taskUrl.trim(),
+      requiresProof: taskRequiresProof,
+    });
+
+    if (res.success) {
+      setMessage('Task Updated Successfully!');
+      setEditingTask(null);
+      setTaskTitle('');
+      setTaskDesc('');
+      setTaskReward(500);
+      setTaskUrl('');
+      loadTasks();
+      setActiveTab('manage_tasks');
+    } else {
+      setMessage(`Failed to update task: ${res.error}`);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string, title: string) => {
+    if (!confirm(`Are you sure you want to delete the task "${title}"?`)) return;
+    const res = await deleteAdminTaskApi(taskId);
+    if (res.success) {
+      setMessage(`Task deleted successfully!`);
+      loadTasks();
+    } else {
+      setMessage(`Failed to delete task: ${res.error}`);
+    }
+  };
+
+  const startEditingTask = (task: Task) => {
+    setEditingTask(task);
+    setTaskTitle(task.title);
+    setTaskDesc(task.description);
+    setTaskReward(task.reward);
+    setTaskType(task.type);
+    setTaskCategory(task.category);
+    setTaskUrl(task.actionUrl || '');
+    setTaskRequiresProof(task.requiresProof);
+    setActiveTab('add_task');
   };
 
   const pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'pending').length;
@@ -262,7 +326,7 @@ export const AdminView: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('add_task')}
+          onClick={() => { setEditingTask(null); setTaskTitle(''); setTaskDesc(''); setTaskReward(500); setTaskUrl(''); setActiveTab('add_task'); }}
           className={`py-2 px-3 text-xs font-black rounded-xl shrink-0 transition-all cursor-pointer ${
             activeTab === 'add_task'
               ? 'bg-amber-500 text-black shadow-md'
@@ -270,6 +334,17 @@ export const AdminView: React.FC = () => {
           }`}
         >
           <span>+ Add Task</span>
+        </button>
+
+        <button
+          onClick={() => { setEditingTask(null); setActiveTab('manage_tasks'); }}
+          className={`py-2 px-3 text-xs font-black rounded-xl shrink-0 transition-all cursor-pointer ${
+            activeTab === 'manage_tasks'
+              ? 'bg-amber-500 text-black shadow-md'
+              : 'text-amber-200/70 hover:text-amber-100'
+          }`}
+        >
+          <span>📋 Tasks ({tasks.length})</span>
         </button>
 
         <button
@@ -415,13 +490,24 @@ export const AdminView: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Add New Task Tab */}
+      {/* 3. Add / Edit Task Tab */}
       {activeTab === 'add_task' && (
-        <form onSubmit={handleCreateTask} className="bg-[#211410] p-4 rounded-3xl border border-[#442f26] shadow-xl space-y-3 text-xs">
-          <h2 className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
-            <Plus className="w-4 h-4 text-amber-400" />
-            <span>Publish New Task to App</span>
-          </h2>
+        <form onSubmit={editingTask ? handleUpdateTask : handleCreateTask} className="bg-[#211410] p-4 rounded-3xl border border-[#442f26] shadow-xl space-y-3 text-xs">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+              <Plus className="w-4 h-4 text-amber-400" />
+              <span>{editingTask ? `✏️ Edit Task: ${editingTask.title}` : 'Publish New Task to App'}</span>
+            </h2>
+            {editingTask && (
+              <button
+                type="button"
+                onClick={() => { setEditingTask(null); setTaskTitle(''); setTaskDesc(''); setTaskReward(500); setTaskUrl(''); setActiveTab('manage_tasks'); }}
+                className="bg-[#2d1e18] text-amber-300 hover:text-white px-2.5 py-1 rounded-xl border border-[#4d3329] text-[10px] font-bold cursor-pointer"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
 
           <div>
             <label className="font-bold text-amber-300 block mb-1">Task Title</label>
@@ -498,9 +584,69 @@ export const AdminView: React.FC = () => {
             type="submit"
             className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold py-3 rounded-2xl shadow-lg mt-2 hover:from-amber-400 hover:to-orange-400 transition-all cursor-pointer"
           >
-            Publish New Task
+            {editingTask ? 'Update Task Changes' : 'Publish New Task'}
           </button>
         </form>
+      )}
+
+      {/* 3b. Manage Tasks Tab */}
+      {activeTab === 'manage_tasks' && (
+        <div className="bg-[#211410] p-4 rounded-3xl border border-[#442f26] shadow-xl space-y-3 text-xs">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-amber-400" />
+              <span>Active Tasks Database ({tasks.length})</span>
+            </h2>
+            <button
+              onClick={() => { setEditingTask(null); setTaskTitle(''); setTaskDesc(''); setTaskReward(500); setTaskUrl(''); setActiveTab('add_task'); }}
+              className="bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-xl font-extrabold flex items-center gap-1 shadow-sm cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" /> New Task
+            </button>
+          </div>
+
+          {tasks.length === 0 ? (
+            <div className="text-center py-8 text-amber-300/60 font-mono">
+              No tasks created yet. Click "+ Add Task" to create one.
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {tasks.map(t => (
+                <div key={t.id} className="bg-[#140b08] p-3.5 rounded-2xl border border-[#3e2a22] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-inner">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-amber-100 text-sm truncate">{t.title}</span>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase ${t.type === 'daily' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>
+                        {t.type}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-300/70 mt-1 line-clamp-1">{t.description}</p>
+                    <div className="flex items-center gap-3 mt-2 text-[10px] font-mono text-amber-400">
+                      <span>Reward: 🪙 {t.reward} Coins</span>
+                      {t.requiresProof && <span className="text-emerald-400">📸 Proof Req</span>}
+                      {t.actionUrl && <a href={t.actionUrl} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">Link ↗</a>}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-[#2d1e18]">
+                    <button
+                      onClick={() => startEditingTask(t)}
+                      className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTask(t.id, t.title)}
+                      className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* 4. API Keys & Settings Tab */}
@@ -512,19 +658,22 @@ export const AdminView: React.FC = () => {
           </h2>
 
           <div>
-            <label className="font-bold text-amber-300 flex items-center gap-1.5 mb-1">
-              <ImageIcon className="w-4 h-4 text-amber-400" />
-              <span>ImgBB API Key (Image Hosting)</span>
+            <label className="font-bold text-amber-300 flex items-center justify-between mb-1">
+              <span className="flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-amber-400" />
+                <span>ImgBB API Keys (Multi-Key Rotation & Failover)</span>
+              </span>
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono border border-amber-500/30">Auto-Rotate Enabled</span>
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={3}
               value={imgbbKey}
               onChange={e => setImgbbKey(e.target.value)}
-              placeholder="Enter ImgBB API key..."
-              className="w-full bg-[#140b08] border border-[#3e2a22] rounded-xl p-2.5 text-amber-100 font-mono"
+              placeholder="Enter multiple ImgBB API keys separated by commas, spaces, or newlines (e.g. key1, key2, key3)..."
+              className="w-full bg-[#140b08] border border-[#3e2a22] rounded-xl p-2.5 text-amber-100 font-mono text-[11px]"
             />
-            <p className="text-[10px] text-amber-300/60 mt-1">
-              Get free key at <a href="https://api.imgbb.com/" target="_blank" rel="noreferrer" className="text-amber-400 underline">api.imgbb.com</a> for image proof uploads.
+            <p className="text-[10px] text-amber-300/70 mt-1 leading-relaxed">
+              ⚡ <strong className="text-amber-400">Smart Failover:</strong> You can paste multiple keys separated by comma or newlines. When an upload occurs, if any key fails or reaches rate limits, the system automatically ignores it and rotates to the next active key! Get free keys at <a href="https://api.imgbb.com/" target="_blank" rel="noreferrer" className="text-amber-400 underline">api.imgbb.com</a>.
             </p>
           </div>
 

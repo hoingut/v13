@@ -196,6 +196,22 @@ export async function createAdminTaskApi(taskData: any) {
   return res.json();
 }
 
+export async function updateAdminTaskApi(taskId: string, taskData: any) {
+  const res = await fetch(`/api/admin/tasks/${taskId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(taskData),
+  });
+  return res.json();
+}
+
+export async function deleteAdminTaskApi(taskId: string) {
+  const res = await fetch(`/api/admin/tasks/${taskId}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
+
 export async function claimDailyCheckInApi(userId: string) {
   const res = await fetch('/api/checkin/claim', {
     method: 'POST',

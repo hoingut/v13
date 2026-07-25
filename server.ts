@@ -259,31 +259,48 @@ async function sendOtpEmail(email: string, otpCode: string): Promise<{ success: 
   };
 }
 
-// ImgBB Upload Proxy
+// Track failed ImgBB API keys so they are not used again in this session
+const failedImgbbKeys = new Set<string>();
+
+// ImgBB Upload Proxy with Multi-Key Failover & Automatic Rotation
 async function uploadToImgBB(base64Image: string): Promise<string> {
-  const apiKey = systemSettings.imgbbApiKey || process.env.IMGBB_API_KEY;
-  if (!apiKey) {
-    // Return base64 or placeholder preview link if API key is not yet entered
+  const rawKeys = `${systemSettings.imgbbApiKey || ''},${process.env.IMGBB_API_KEY || ''}`;
+  const allKeys = rawKeys
+    .split(/[\s,]+/)
+    .map(k => k.trim())
+    .filter(k => k.length > 5 && !failedImgbbKeys.has(k));
+
+  if (allKeys.length === 0) {
+    console.warn('[ImgBB] No valid active API keys available (or all keys failed). Returning base64 fallback.');
     return base64Image;
   }
 
-  try {
-    const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
-    const formData = new URLSearchParams();
-    formData.append('image', cleanBase64);
+  const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+  const formData = new URLSearchParams();
+  formData.append('image', cleanBase64);
 
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-      method: 'POST',
-      body: formData,
-    });
+  for (const apiKey of allKeys) {
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: 'POST',
+        body: formData,
+      });
 
-    const data = await response.json();
-    if (data && data.data && data.data.url) {
-      return data.data.url;
+      const data = await response.json();
+      if (response.ok && data && data.data && data.data.url) {
+        console.log(`[ImgBB] Successfully uploaded image using key: ${apiKey.slice(0, 4)}...`);
+        return data.data.url;
+      } else {
+        console.warn(`[ImgBB] Upload failed with key ${apiKey.slice(0, 4)}... Status: ${response.status}. Marking key as failed.`);
+        failedImgbbKeys.add(apiKey);
+      }
+    } catch (err) {
+      console.error(`[ImgBB] Error uploading with key ${apiKey.slice(0, 4)}... Marking key as failed:`, err);
+      failedImgbbKeys.add(apiKey);
     }
-  } catch (err) {
-    console.error('ImgBB upload error:', err);
   }
+
+  console.warn('[ImgBB] All available ImgBB API keys failed during this upload attempt.');
   return base64Image;
 }
 
@@ -1099,7 +1116,10 @@ app.get('/api/admin/settings', (req, res) => {
 
 app.post('/api/admin/settings', (req, res) => {
   const { imgbbApiKey, brevoApiKey, resendApiKey, brevoDailyLimit, resendDailyLimit } = req.body;
-  if (imgbbApiKey !== undefined) systemSettings.imgbbApiKey = imgbbApiKey;
+  if (imgbbApiKey !== undefined) {
+    systemSettings.imgbbApiKey = imgbbApiKey;
+    failedImgbbKeys.clear(); // Clear failed keys on admin update so corrected keys can be re-tested
+  }
   if (brevoApiKey !== undefined) systemSettings.brevoApiKey = brevoApiKey;
   if (resendApiKey !== undefined) systemSettings.resendApiKey = resendApiKey;
   if (brevoDailyLimit !== undefined) systemSettings.brevoDailyLimit = Number(brevoDailyLimit);
@@ -1155,6 +1175,43 @@ app.post('/api/admin/tasks', (req, res) => {
 
   mockTasks.push(newTask);
   res.json({ success: true, task: newTask });
+});
+
+// 15b. Admin: Update Task
+app.put('/api/admin/tasks/:id', (req, res) => {
+  const { id } = req.params;
+  const { title, description, reward, type, category, actionUrl, requiresProof } = req.body;
+
+  const index = mockTasks.findIndex(t => t.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, error: 'Task not found' });
+  }
+
+  mockTasks[index] = {
+    ...mockTasks[index],
+    title: title || mockTasks[index].title,
+    description: description !== undefined ? description : mockTasks[index].description,
+    reward: reward !== undefined ? Number(reward) : mockTasks[index].reward,
+    type: type || mockTasks[index].type,
+    category: category || mockTasks[index].category,
+    actionUrl: actionUrl !== undefined ? actionUrl : mockTasks[index].actionUrl,
+    requiresProof: requiresProof !== undefined ? Boolean(requiresProof) : mockTasks[index].requiresProof,
+  };
+
+  res.json({ success: true, task: mockTasks[index] });
+});
+
+// 15c. Admin: Delete Task
+app.delete('/api/admin/tasks/:id', (req, res) => {
+  const { id } = req.params;
+  const index = mockTasks.findIndex(t => t.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, error: 'Task not found' });
+  }
+
+  const deletedTask = mockTasks[index];
+  mockTasks.splice(index, 1);
+  res.json({ success: true, deletedTaskId: id, task: deletedTask });
 });
 
 // 16. Withdrawal Endpoints
