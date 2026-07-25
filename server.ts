@@ -20,10 +20,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // System Settings State
 let systemSettings: SystemSettings = {
   imgbbApiKey: process.env.IMGBB_API_KEY || '',
-  brevoApiKey: process.env.BREVO_API_KEY || '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',
+  brevoApiKey: process.env.BREVO_API_KEY || '',
   brevoDailyLimit: 290,
   brevoUsedToday: 0,
-  resendApiKey: process.env.RESEND_API_KEY || 're_QUfehT2K_LUef2YPJb14rBVAKwwiijFkk',
+  resendApiKey: process.env.RESEND_API_KEY || '',
   resendDailyLimit: 98,
   resendUsedToday: 0,
   rechargeIntervalHours: 6,
@@ -196,15 +196,17 @@ function getOtpEmailHtml(otpCode: string, email: string): string {
 async function sendOtpEmail(email: string, otpCode: string): Promise<{ success: boolean; providerUsed: string; message: string }> {
   const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@nxpost.online';
   const emailHtmlContent = getOtpEmailHtml(otpCode, email);
+  const activeBrevoKey = systemSettings.brevoApiKey || process.env.BREVO_API_KEY || '';
+  const activeResendKey = systemSettings.resendApiKey || process.env.RESEND_API_KEY || '';
 
   // Check Brevo first
-  if (systemSettings.brevoApiKey && systemSettings.brevoUsedToday < systemSettings.brevoDailyLimit) {
+  if (activeBrevoKey && systemSettings.brevoUsedToday < systemSettings.brevoDailyLimit) {
     try {
       const res = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
           'accept': 'application/json',
-          'api-key': systemSettings.brevoApiKey,
+          'api-key': activeBrevoKey,
           'content-type': 'application/json',
         },
         body: JSON.stringify({
@@ -227,12 +229,12 @@ async function sendOtpEmail(email: string, otpCode: string): Promise<{ success: 
   }
 
   // Fallback to Resend
-  if (systemSettings.resendApiKey && systemSettings.resendUsedToday < systemSettings.resendDailyLimit) {
+  if (activeResendKey && systemSettings.resendUsedToday < systemSettings.resendDailyLimit) {
     try {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${systemSettings.resendApiKey}`,
+          'Authorization': `Bearer ${activeResendKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

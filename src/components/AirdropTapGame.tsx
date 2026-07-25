@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { syncUserApi } from '../lib/api';
 import confetti from 'canvas-confetti';
-import { Zap, ShieldAlert, Sparkles, Flame, Clock } from 'lucide-react';
+import { Zap, ShieldAlert, Sparkles, Flame, Clock, Gift } from 'lucide-react';
+import { BannerAd } from './ads/BannerAd';
+import { SocialAd } from './ads/SocialAd';
 
 import hedgehogImg from '../assets/images/hedgehog_mascot_1784869809278.jpg';
 import coinImg from '../assets/images/nxb_golden_coin_1784869821261.jpg';
@@ -31,6 +33,12 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
   const [isTapping, setIsTapping] = useState(false);
   const [rechargeTimeLeft, setRechargeTimeLeft] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // 🎯 Sponsored Banner Reward Popups every 60-70 taps
+  const [tapSessionCount, setTapSessionCount] = useState(0);
+  const [nextTargetTaps, setNextTargetTaps] = useState(() => Math.floor(Math.random() * 11) + 60);
+  const [showCongratulationModal, setShowCongratulationModal] = useState(false);
+  
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 6-hour energy recharge calculation countdown display
@@ -116,6 +124,21 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
       });
     }
 
+    // Check tap milestone for Sponsored Banner Reward (every 60-70 taps)
+    const newTapCount = tapSessionCount + 1;
+    setTapSessionCount(newTapCount);
+    if (newTapCount >= nextTargetTaps) {
+      setTapSessionCount(0);
+      setNextTargetTaps(Math.floor(Math.random() * 11) + 60); // Reset to next 60-70 milestone
+      setShowCongratulationModal(true);
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.5 },
+        colors: ['#f59e0b', '#10b981', '#3b82f6', '#ec4899'],
+      });
+    }
+
     onUpdateUser(updatedUser);
 
     // Debounced database sync (sync 2s after tapping stops, or immediately if level up)
@@ -137,6 +160,8 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
 
   return (
     <div className="flex flex-col items-center justify-between min-h-[78vh] px-4 py-3 relative text-amber-50 select-none">
+      {/* 🌐 Social Ad (Active ONLY on Airdrop Page) */}
+      <SocialAd />
       
       {/* Top $NXB Score Board - Luxury Golden Box */}
       <div className="w-full flex flex-col items-center gap-2 my-1">
@@ -318,6 +343,39 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 🎉 Congratulations Popup with Sponsored Banner Ad (every 60-70 taps) */}
+      {showCongratulationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-gradient-to-b from-[#2e180f] via-[#1f100a] to-[#120805] border-2 border-amber-500 rounded-3xl p-5 shadow-[0_0_50px_rgba(245,158,11,0.4)] text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 via-orange-500 to-amber-400 flex items-center justify-center text-black mx-auto shadow-lg animate-bounce border border-amber-200">
+              <Gift className="w-9 h-9 fill-black" />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-black text-amber-300 drop-shadow-md">
+                🎉 অভিনন্দন! (Congratulations!) 🎉
+              </h3>
+              <p className="text-xs text-amber-100/90 mt-1 font-sans leading-relaxed px-2">
+                আপনি চমৎকারভাবে মাইনিং করছেন! আপনার স্পিড ও রিওয়ার্ড পয়েন্ট সক্রিয় আছে। নিচের স্পনসর ব্যানারটি দেখুন এবং রিওয়ার্ড উপভোগ করুন!
+              </p>
+            </div>
+
+            {/* The Sponsored Banner Ad */}
+            <BannerAd />
+
+            <div className="pt-1">
+              <button
+                onClick={() => setShowCongratulationModal(false)}
+                className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs uppercase tracking-wider shadow-[0_5px_20px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>মাইনিং চালিয়ে যান (Continue Mining)</span>
+                <Zap className="w-4 h-4 fill-black" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

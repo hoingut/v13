@@ -22,11 +22,11 @@ In the Vercel project deployment screen, expand **Environment Variables** and ad
 
 | Key | Example / Default Value |
 | --- | --- |
-| `SUPABASE_URL` | `https://tcmzgqedczwvacflqpic.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
-| `BREVO_API_KEY` | `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` |
-| `BREVO_SENDER_EMAIL` | `noreply@nxpost.online` |
-| `RESEND_API_KEY` | `re_QUfehT2K_LUef2YPJb14rBVAKwwiijFkk` |
+| `SUPABASE_URL` | `https://your-project.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGciOiJIUzI1Ni...` *(Your Supabase Service Role Key)* |
+| `BREVO_API_KEY` | `xkeysib-...` *(Your Brevo API Key)* |
+| `BREVO_SENDER_EMAIL` | `noreply@yourdomain.com` |
+| `RESEND_API_KEY` | `re_...` *(Your Resend API Key)* |
 | `IMGBB_API_KEY` | *(Your ImgBB API Key)* |
 
 ---

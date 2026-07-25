@@ -15,6 +15,7 @@ import { AdminView } from './components/AdminView';
 import { AuthModal } from './components/AuthModal';
 import { WelcomePopup } from './components/WelcomePopup';
 import { TutorialView } from './components/TutorialView';
+import { PopunderAd } from './components/ads/PopunderAd';
 
 export default function App() {
   // ⚡ Instant Optimistic Load: Read user from localStorage/cookie cache on initial render
@@ -160,6 +161,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#1c1310] via-[#160d0a] to-[#110806] text-amber-50 font-sans relative overflow-x-hidden">
+      {/* 2-Hour Popunder Ad Script Controller */}
+      <PopunderAd />
+
       {/* Background ambient lighting glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md h-72 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
 

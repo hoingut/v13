@@ -73,10 +73,10 @@ CREATE TABLE IF NOT EXISTS public.referrals (
 CREATE TABLE IF NOT EXISTS public.system_settings (
   id INT PRIMARY KEY DEFAULT 1,
   imgbb_api_key TEXT DEFAULT '',
-  brevo_api_key TEXT DEFAULT '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',
+  brevo_api_key TEXT DEFAULT '',
   brevo_daily_limit INT DEFAULT 290,
   brevo_used_today INT DEFAULT 0,
-  resend_api_key TEXT DEFAULT 're_QUfehT2K_LUef2YPJb14rBVAKwwiijFkk',
+  resend_api_key TEXT DEFAULT '',
   resend_daily_limit INT DEFAULT 98,
   resend_used_today INT DEFAULT 0,
   recharge_interval_hours INT DEFAULT 6,
