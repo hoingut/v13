@@ -114,9 +114,85 @@ function calculateRechargedEnergy(user: User): number {
   return Math.min(user.maxEnergy, Math.round(user.energy + energyAdded));
 }
 
+// Premium Responsive OTP Email Template Generator
+function getOtpEmailHtml(otpCode: string, email: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XN Reward OTP Verification</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0d0806; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #f3e8df;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0d0806; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <table width="100%" max-width="520" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; background: linear-gradient(145deg, #1f120d, #140b08); border-radius: 20px; border: 1px solid #4a2d1f; box-shadow: 0 15px 35px rgba(0,0,0,0.7); overflow: hidden;">
+          
+          <!-- Top Golden Banner Header -->
+          <tr>
+            <td align="center" style="background: linear-gradient(90deg, #f59e0b, #ea580c); padding: 25px 20px;">
+              <h1 style="margin: 0; font-size: 26px; font-weight: 900; color: #000000; letter-spacing: 2px; text-transform: uppercase;">XN REWARD OFFICIAL</h1>
+              <p style="margin: 5px 0 0 0; font-size: 13px; color: #2a1304; font-weight: 700;">SECURE EMAIL VERIFICATION SYSTEM</p>
+            </td>
+          </tr>
+
+          <!-- Main Content Body -->
+          <tr>
+            <td style="padding: 35px 25px; text-align: center;">
+              <p style="margin: 0 0 10px 0; font-size: 15px; color: #d6bdae;">Hello <strong style="color: #f59e0b;">${email}</strong>,</p>
+              <p style="margin: 0 0 25px 0; font-size: 14px; color: #a88d7f; line-height: 1.6;">
+                Welcome to XN Reward! Please use the following 6-digit One-Time Password (OTP) to complete your secure sign-in or account verification:
+              </p>
+
+              <!-- Glowing Golden OTP Box -->
+              <div style="background: #25140e; border: 2px dashed #f59e0b; border-radius: 16px; padding: 22px 15px; margin: 25px 0; box-shadow: inset 0 0 15px rgba(245, 158, 11, 0.2);">
+                <span style="font-size: 36px; font-weight: 900; color: #fbbf24; letter-spacing: 8px; font-family: 'Courier New', Courier, monospace; display: inline-block;">${otpCode}</span>
+              </div>
+
+              <p style="margin: 15px 0; font-size: 13px; color: #ef4444; font-weight: bold; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                ⏳ This code is valid for exactly 10 minutes.
+              </p>
+
+              <!-- Bangla Instruction Box -->
+              <div style="margin-top: 25px; padding: 15px; background: #1a0f0a; border-left: 4px solid #f59e0b; border-radius: 8px; text-align: left;">
+                <p style="margin: 0 0 5px 0; font-size: 13px; font-weight: bold; color: #fbbf24;">🔒 নিরাপত্তা বার্তা (Security Alert):</p>
+                <p style="margin: 0; font-size: 12px; color: #c4a796; line-height: 1.5;">
+                  আপনার ওটিপি (OTP) কোডটি কখনোই অন্য কারো সাথে শেয়ার করবেন না। XN Reward-এর কোনো অ্যাডমিন বা মডারেটর কখনো আপনার কাছে ওটিপি বা পাসওয়ার্ড জানতে চাইবে না।
+                </p>
+              </div>
+
+              <!-- Official Telegram Button -->
+              <div style="margin-top: 30px;">
+                <a href="https://t.me/xnrewared" target="_blank" style="display: inline-block; background: linear-gradient(90deg, #f59e0b, #f97316); color: #000000; font-weight: 800; font-size: 13px; text-decoration: none; padding: 12px 25px; border-radius: 12px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                  Join Official Telegram Channel →
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="background: #110906; padding: 20px; border-top: 1px solid #2d1a12;">
+              <p style="margin: 0 0 5px 0; font-size: 12px; font-weight: bold; color: #a88d7f;">XN Reward Earning Platform</p>
+              <p style="margin: 0; font-size: 11px; color: #6e5548;">Need help? Contact 24/7 Helpline on Telegram: <a href="https://t.me/xnhelpline" style="color: #38bdf8; text-decoration: none;">@xnhelpline</a></p>
+              <p style="margin: 8px 0 0 0; font-size: 10px; color: #523c32;">© ${new Date().getFullYear()} XN Reward. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 // SMTP Failover Handler (Brevo -> Resend -> Fallback)
 async function sendOtpEmail(email: string, otpCode: string): Promise<{ success: boolean; providerUsed: string; message: string }> {
   const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@nxpost.online';
+  const emailHtmlContent = getOtpEmailHtml(otpCode, email);
+
   // Check Brevo first
   if (systemSettings.brevoApiKey && systemSettings.brevoUsedToday < systemSettings.brevoDailyLimit) {
     try {
@@ -128,10 +204,10 @@ async function sendOtpEmail(email: string, otpCode: string): Promise<{ success: 
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          sender: { name: 'XN Reward', email: brevoSenderEmail },
+          sender: { name: 'XN Reward Official', email: brevoSenderEmail },
           to: [{ email }],
-          subject: 'Your XN Reward Verification OTP',
-          htmlContent: `<div style="font-family:sans-serif;padding:20px;background:#1a1412;color:#f3e8df;border-radius:12px;"><h2>XN Reward Email Verification</h2><p>Your OTP code is: <b style="font-size:24px;color:#f59e0b;">${otpCode}</b></p><p>This code expires in 10 minutes.</p></div>`,
+          subject: '🔒 Your XN Reward Verification OTP Code',
+          htmlContent: emailHtmlContent,
         }),
       });
       if (res.ok) {
@@ -158,8 +234,8 @@ async function sendOtpEmail(email: string, otpCode: string): Promise<{ success: 
         body: JSON.stringify({
           from: 'XN Reward <onboarding@resend.dev>',
           to: email,
-          subject: 'Your XN Reward Verification OTP',
-          html: `<div style="font-family:sans-serif;padding:20px;background:#1a1412;color:#f3e8df;border-radius:12px;"><h2>XN Reward Email Verification</h2><p>Your OTP code is: <b style="font-size:24px;color:#f59e0b;">${otpCode}</b></p></div>`,
+          subject: '🔒 Your XN Reward Verification OTP Code',
+          html: emailHtmlContent,
         }),
       });
       if (res.ok) {

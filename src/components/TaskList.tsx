@@ -94,46 +94,52 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
 
   return (
     <div className="flex flex-col gap-4 px-4 pt-2 pb-24 text-amber-50">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-[#33221b] to-[#241713] p-4 rounded-3xl border border-[#4d352b]/80 shadow-xl flex items-center justify-between">
+      {/* Top Banner - Luxury Golden Card */}
+      <div className="bg-gradient-to-br from-[#382015] via-[#26150e] to-[#150a06] p-5 rounded-3xl border-t border-t-amber-400/60 border-x border-x-amber-500/30 border-b border-b-black/80 shadow-[0_15px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(245,158,11,0.15)] flex items-center justify-between relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
         <div>
           <h2 className="text-xl font-black text-amber-100 flex items-center gap-2">
-            <Flag className="w-5 h-5 text-amber-400" />
-            <span>INCREASE YOUR RATING</span>
+            <div className="p-1 rounded-lg bg-amber-500/20 border border-amber-400/40">
+              <Flag className="w-5 h-5 text-amber-400 animate-pulse" />
+            </div>
+            <span className="tracking-wide">INCREASE YOUR RATING</span>
           </h2>
-          <p className="text-xs text-amber-300/70 mt-1">
-            টাস্ক পূরণ করুন, স্ক্রিনশট প্রুফ দিন এবং টাকা (Taka BDT) রিওয়ার্ড পান!
+          <p className="text-xs text-amber-200/80 mt-1.5 leading-relaxed">
+            টাস্ক পূরণ করুন, স্ক্রিনশট প্রুফ দিন এবং নগদ টাকা (<strong className="text-emerald-400 font-mono">Taka BDT</strong>) রিওয়ার্ড পান!
           </p>
         </div>
-        <img
-          src="/src/assets/images/nxb_golden_coin_1784869821261.jpg"
-          alt="Coins"
-          className="w-12 h-12 rounded-2xl shadow-lg border border-amber-400/40"
-        />
+        <div className="relative shrink-0">
+          <div className="absolute inset-0 bg-amber-400 rounded-full blur-md opacity-40 animate-pulse" />
+          <img
+            src="/src/assets/images/nxb_golden_coin_1784869821261.jpg"
+            alt="Coins"
+            className="relative w-14 h-14 rounded-2xl shadow-2xl border-2 border-amber-300/80 object-cover"
+          />
+        </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 bg-[#251814]/90 p-1.5 rounded-2xl border border-[#443027]">
+      <div className="flex items-center gap-2 bg-[#1b0f0b]/90 p-1.5 rounded-2xl border border-[#4a2b1d] shadow-inner">
         <button
           onClick={() => setFilterTab('all')}
-          className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
-            filterTab === 'all' ? 'bg-amber-500 text-black shadow-md' : 'text-amber-200/60 hover:text-amber-100'
+          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+            filterTab === 'all' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-md scale-102' : 'text-amber-200/60 hover:text-amber-100 hover:bg-white/5'
           }`}
         >
           All Tasks
         </button>
         <button
           onClick={() => setFilterTab('daily')}
-          className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
-            filterTab === 'daily' ? 'bg-amber-500 text-black shadow-md' : 'text-amber-200/60 hover:text-amber-100'
+          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+            filterTab === 'daily' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-md scale-102' : 'text-amber-200/60 hover:text-amber-100 hover:bg-white/5'
           }`}
         >
           Daily Tasks
         </button>
         <button
           onClick={() => setFilterTab('one_time')}
-          className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
-            filterTab === 'one_time' ? 'bg-amber-500 text-black shadow-md' : 'text-amber-200/60 hover:text-amber-100'
+          className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+            filterTab === 'one_time' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-md scale-102' : 'text-amber-200/60 hover:text-amber-100 hover:bg-white/5'
           }`}
         >
           One-Time
@@ -142,34 +148,36 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
 
       {/* Message Toast */}
       {message && (
-        <div className="bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs p-3 rounded-2xl flex items-center justify-between">
+        <div className="bg-gradient-to-r from-amber-950 via-orange-950 to-amber-950 border border-amber-500 text-amber-100 text-xs p-3.5 rounded-2xl flex items-center justify-between shadow-lg font-bold animate-bounce">
           <span>{message}</span>
-          <button onClick={() => setMessage(null)} className="text-amber-400 font-bold">✕</button>
+          <button onClick={() => setMessage(null)} className="text-amber-400 font-extrabold px-2 cursor-pointer">✕</button>
         </div>
       )}
 
       {/* Task List Items */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3.5">
         {filteredTasks.map(task => {
           const status = getTaskStatus(task.id);
           return (
             <div
               key={task.id}
-              className="bg-[#2a1d18]/90 backdrop-blur-md p-3.5 rounded-2xl border border-[#4a342b]/70 flex items-center justify-between gap-3 shadow-lg hover:border-amber-500/40 transition-all"
+              className="bg-gradient-to-br from-[#331e15]/95 via-[#23140e]/95 to-[#150a07]/95 backdrop-blur-xl p-4 rounded-3xl border-t border-t-amber-400/50 border-x border-x-amber-500/20 border-b border-b-black/80 flex items-center justify-between gap-3 shadow-[0_10px_25px_rgba(0,0,0,0.7)] hover:scale-101 hover:border-amber-400/80 transition-all group relative overflow-hidden"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600/30 to-orange-600/30 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <Flag className="w-5 h-5" />
+              <div className="absolute -left-4 -top-4 w-12 h-12 bg-amber-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-amber-500/20 transition-all" />
+
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-sm shrink-0 group-hover:scale-105 transition-transform">
+                  <Flag className="w-5 h-5 fill-amber-400/20" />
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-bold text-amber-100">{task.title}</h3>
-                  <p className="text-[11px] text-amber-300/60 line-clamp-1">{task.description}</p>
+                  <h3 className="text-sm font-black text-amber-100 group-hover:text-amber-300 transition-colors">{task.title}</h3>
+                  <p className="text-[11px] text-amber-300/70 line-clamp-1 mt-0.5">{task.description}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20">
+              <div className="flex items-center gap-2.5 shrink-0">
+                <span className="text-xs font-mono font-black text-emerald-400 bg-emerald-950/90 px-3 py-1 rounded-xl border border-emerald-500/40 shadow-inner">
                   ৳ {task.reward} Taka
                 </span>
 

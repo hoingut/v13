@@ -153,71 +153,74 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
 
   return (
     <div className="p-4 space-y-4 pb-24 text-amber-50">
-      {/* Page Title */}
-      <div className="flex items-center gap-3 bg-gradient-to-r from-[#2a1b15] to-[#1c110d] p-4 rounded-3xl border border-[#4d362c] shadow-xl">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg border border-amber-300/30 shrink-0">
-          <Wallet className="w-6 h-6" />
+      {/* Page Title - Luxury Golden Banner */}
+      <div className="flex items-center gap-3.5 bg-gradient-to-br from-[#382015] via-[#24130d] to-[#150a06] p-4.5 rounded-3xl border-t border-t-amber-400/60 border-x border-x-amber-500/30 border-b border-b-black/80 shadow-[0_15px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(245,158,11,0.15)] relative overflow-hidden">
+        <div className="absolute -right-6 -top-6 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
+        <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 flex items-center justify-center text-black shadow-xl border-2 border-amber-300/80 shrink-0">
+          <Wallet className="w-6 h-6 stroke-[2.5]" />
         </div>
         <div>
-          <h1 className="text-lg font-black text-amber-100">উইথড্র প্যানেল (Withdrawal Page)</h1>
-          <p className="text-xs text-emerald-400 font-mono font-bold">
+          <h1 className="text-lg font-black text-amber-100 tracking-wide">উইথড্র প্যানেল (Withdrawal)</h1>
+          <p className="text-xs text-emerald-400 font-mono font-extrabold mt-0.5 drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]">
             bKash | Nagad | Rocket | Binance
           </p>
         </div>
       </div>
 
       {/* Dual Balance Cards Header */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-gradient-to-br from-[#271a14] to-[#170e0b] p-3.5 rounded-3xl border border-amber-500/30 shadow-lg relative overflow-hidden">
-          <div className="text-[10px] text-amber-400 font-extrabold uppercase tracking-wider flex items-center gap-1 mb-1">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="bg-gradient-to-b from-[#331e15] via-[#22130d] to-[#140a07] p-4 rounded-3xl border-t border-t-amber-400/60 border-x border-x-amber-500/30 border-b border-b-black/80 shadow-[0_10px_25px_rgba(0,0,0,0.7),0_0_15px_rgba(245,158,11,0.1)] relative overflow-hidden">
+          <div className="text-[10px] text-amber-300 font-black uppercase tracking-wider flex items-center gap-1 mb-1">
             <Coins className="w-3.5 h-3.5 text-amber-400" />
             <span>Coins Balance</span>
           </div>
-          <div className="text-lg font-black text-amber-100 font-mono">
+          <div className="text-xl font-black text-amber-400 font-mono drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             {user.balance.toLocaleString()}
           </div>
-          <p className="text-[9px] text-amber-300/60 mt-0.5">Earned from Tap & Game</p>
+          <p className="text-[9px] text-amber-300/70 mt-1 bg-[#160b07] px-2 py-0.5 rounded-lg border border-amber-500/30 w-fit font-mono">Tap & Game</p>
         </div>
 
-        <div className="bg-gradient-to-br from-[#1a261a] to-[#0e170e] p-3.5 rounded-3xl border border-emerald-500/30 shadow-lg relative overflow-hidden">
-          <div className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1 mb-1">
+        <div className="bg-gradient-to-b from-emerald-900/90 via-[#13241d] to-[#0a1410] p-4 rounded-3xl border-t border-t-emerald-400/60 border-x border-x-emerald-500/30 border-b border-b-black/80 shadow-[0_10px_25px_rgba(0,0,0,0.7),0_0_15px_rgba(16,185,129,0.15)] relative overflow-hidden">
+          <div className="text-[10px] text-emerald-300 font-black uppercase tracking-wider flex items-center gap-1 mb-1">
             <Landmark className="w-3.5 h-3.5 text-emerald-400" />
             <span>Taka Balance</span>
           </div>
-          <div className="text-lg font-black text-emerald-300 font-mono">
+          <div className="text-xl font-black text-emerald-400 font-mono drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             ৳ {(user.takaBalance || 0).toLocaleString()} BDT
           </div>
-          <p className="text-[9px] text-emerald-400/70 mt-0.5">Earned from Tasks & Referrals</p>
+          <p className="text-[9px] text-emerald-300/80 mt-1 bg-[#0a1410] px-2 py-0.5 rounded-lg border border-emerald-500/30 w-fit font-mono">Tasks & Referrals</p>
         </div>
       </div>
 
       {/* Prominent Official Withdrawal Minimum Rules Card */}
-      <div className="bg-gradient-to-br from-[#271711] via-[#1d110d] to-[#140b08] p-4 rounded-3xl border border-amber-500/40 shadow-xl space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-[#3e271e]">
-          <span className="font-extrabold text-sm text-amber-200 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-amber-400" />
+      <div className="bg-gradient-to-br from-[#331e15]/95 via-[#23140e]/95 to-[#150a07]/95 p-5 rounded-3xl border-t border-t-amber-400/60 border-x border-x-amber-500/30 border-b border-b-black/80 shadow-[0_15px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(245,158,11,0.15)] space-y-3.5">
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#4a2b1d]">
+          <span className="font-black text-sm text-amber-100 flex items-center gap-2">
+            <div className="p-1 rounded-lg bg-amber-500/20 border border-amber-400/40">
+              <Calendar className="w-4 h-4 text-amber-400" />
+            </div>
             <span>অফিশিয়াল উইথড্র নিয়মাবলি</span>
           </span>
-          <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-full font-bold border border-amber-500/30">
+          <span className="text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-black px-3 py-1 rounded-full font-black shadow-sm">
             {isBeforeAug15 ? '১৫ আগস্ট এর আগে' : '১৫ আগস্ট এর পর'}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-[#170e0b] p-3 rounded-2xl border border-amber-500/30 space-y-1">
-            <div className="text-[10px] text-amber-400 font-bold uppercase">Coin উইথড্র (১৫ Aug আগে):</div>
-            <div className="text-sm font-black text-amber-100 font-mono">২৫০k Coin</div>
-            <div className="text-[11px] text-emerald-400 font-bold font-mono">= ৫০০ টাকা</div>
+        <div className="grid grid-cols-2 gap-2.5 text-xs">
+          <div className="bg-[#170a06] p-3.5 rounded-2xl border border-amber-500/40 shadow-inner space-y-1">
+            <div className="text-[10px] text-amber-400 font-black uppercase tracking-wide">Coin উইথড্র (১৫ Aug আগে):</div>
+            <div className="text-base font-black text-amber-100 font-mono">২৫০k Coin</div>
+            <div className="text-[11px] text-emerald-400 font-bold font-mono bg-emerald-950/80 px-2 py-0.5 rounded-lg border border-emerald-500/30 w-fit">= ৫০০ টাকা</div>
           </div>
 
-          <div className="bg-[#170e0b] p-3 rounded-2xl border border-emerald-500/30 space-y-1">
-            <div className="text-[10px] text-emerald-400 font-bold uppercase">Taka উইথড্র নিয়ম:</div>
-            <div className="text-sm font-black text-emerald-300 font-mono">সর্বনিম্ন ৳৩০০</div>
-            <div className="text-[11px] text-amber-300 font-bold font-mono">Task & Refer reward</div>
+          <div className="bg-[#170a06] p-3.5 rounded-2xl border border-emerald-500/40 shadow-inner space-y-1">
+            <div className="text-[10px] text-emerald-400 font-black uppercase tracking-wide">Taka উইথড্র নিয়ম:</div>
+            <div className="text-base font-black text-emerald-300 font-mono">সর্বনিম্ন ৳৩০০</div>
+            <div className="text-[11px] text-amber-300 font-bold font-mono bg-amber-950/80 px-2 py-0.5 rounded-lg border border-amber-500/30 w-fit">Task & Refer reward</div>
           </div>
         </div>
 
-        <div className="bg-[#170e0b] p-3 rounded-2xl border border-[#3e281e] flex items-center justify-between text-xs">
+        <div className="bg-[#170a06] p-3.5 rounded-2xl border border-[#482b1d] shadow-inner flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-emerald-400" />
             <span className="font-bold text-amber-200">Coin কনভার্সন রেট:</span>
@@ -225,13 +228,13 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
           <span className="font-black text-emerald-400 font-mono text-sm">১k Coin = ২ টাকা</span>
         </div>
 
-        <div className="bg-[#170e0b] p-3 rounded-2xl border border-[#3e281e] flex items-center justify-between text-xs">
+        <div className="bg-[#170a06] p-3.5 rounded-2xl border border-[#482b1d] shadow-inner flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <Gift className="w-4 h-4 text-orange-400" />
             <span className="font-bold text-amber-200">সর্বনিম্ন রেফার শর্ত:</span>
           </div>
-          <span className={`font-black font-mono text-xs px-2.5 py-0.5 rounded-full ${
-            referralsCount >= 4 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+          <span className={`font-black font-mono text-xs px-3 py-1 rounded-xl shadow-sm ${
+            referralsCount >= 4 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
           }`}>
             {referralsCount} / 4 রেফার সম্পন্ন
           </span>
