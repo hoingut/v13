@@ -2,6 +2,7 @@ import React from 'react';
 import { User } from '../types';
 import { TabType } from './Navbar';
 import { Sparkles, Play, MessageCircle, Send, Info, X } from 'lucide-react';
+import { PwaInstallButton } from './PwaInstallButton';
 
 interface WelcomePopupProps {
   user: User | null;
@@ -69,6 +70,9 @@ export const WelcomePopup: React.FC<WelcomePopupProps> = ({
             <Play className="w-5 h-5 fill-black stroke-black shrink-0" />
             <span>{welcomeText || 'ভিডিও দেখুন! (Tutorial)'}</span>
           </button>
+
+          {/* PWA App Install Button */}
+          <PwaInstallButton variant="button" className="w-full py-3.5" />
 
           {/* 2. Message Support */}
           <a

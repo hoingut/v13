@@ -3,6 +3,7 @@ import { User } from '../types';
 import { TabType } from './Navbar';
 import { uploadAvatarApi } from '../lib/api';
 import { ShieldCheck, User as UserIcon, Sparkles, Wallet, Menu, X, CheckSquare, History, Gamepad2, Gift, Trophy, Zap, LogOut, Send, MessageCircle, Camera, Loader2, ChevronRight, Play } from 'lucide-react';
+import { PwaInstallButton } from './PwaInstallButton';
 
 interface HeaderProps {
   user: User | null;
@@ -129,6 +130,9 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {/* PWA Install Button */}
+          <PwaInstallButton variant="icon" />
+
           {/* Quick Tutorial Button */}
           <button
             onClick={() => onSelectTab?.('tutorial')}
@@ -328,6 +332,10 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Modular Luxury Navigation Links */}
               <div className="space-y-1.5">
+                <div className="pb-1.5">
+                  <PwaInstallButton variant="button" className="w-full" />
+                </div>
+
                 <div className="text-[10px] font-black uppercase tracking-wider text-amber-400/80 px-1 pt-1">
                   🚀 Main Navigation
                 </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { claimDailyCheckInApi, uploadAvatarApi } from '../lib/api';
+import { PwaInstallButton } from './PwaInstallButton';
 import {
   User as UserIcon,
   ShieldCheck,
@@ -161,6 +162,9 @@ export const AccountView: React.FC<AccountViewProps> = ({
 
   return (
     <div className="flex flex-col gap-4 px-4 pt-2 pb-24 text-amber-50">
+      {/* PWA App Install Banner */}
+      <PwaInstallButton variant="banner" />
+
       {/* Profile Overview Banner with Profile Picture Upload */}
       <div className="bg-gradient-to-br from-[#2f1f19] via-[#241713] to-[#180e0a] p-5 rounded-3xl border border-[#4d362c] shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
