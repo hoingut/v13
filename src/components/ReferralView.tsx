@@ -9,8 +9,16 @@ interface ReferralViewProps {
 }
 
 export const ReferralView: React.FC<ReferralViewProps> = ({ user, onOpenAuth }) => {
-  const [referrals, setReferrals] = useState<ReferralRecord[]>([]);
-  const [referralCode, setReferralCode] = useState<string>('');
+  const [referrals, setReferrals] = useState<ReferralRecord[]>(() => {
+    if (!user) return [];
+    try {
+      const cached = localStorage.getItem(`nxb_ref_cache_${user.id}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [referralCode, setReferralCode] = useState<string>(user?.referralCode || '');
   const [copied, setCopied] = useState(false);
   const [deviceDetails, setDeviceDetails] = useState<{ deviceId: string; deviceName: string }>({ deviceId: '', deviceName: '' });
 
@@ -23,10 +31,15 @@ export const ReferralView: React.FC<ReferralViewProps> = ({ user, onOpenAuth }) 
 
   const loadReferrals = async () => {
     if (!user) return;
-    const res = await fetchReferralsApi(user.id);
-    if (res.success) {
-      setReferrals(res.referrals || []);
-      setReferralCode(res.referralCode || user.referralCode);
+    try {
+      const res = await fetchReferralsApi(user.id);
+      if (res.success) {
+        setReferrals(res.referrals || []);
+        setReferralCode(res.referralCode || user.referralCode);
+        localStorage.setItem(`nxb_ref_cache_${user.id}`, JSON.stringify(res.referrals || []));
+      }
+    } catch (err) {
+      console.warn('[Cache] Using cached referrals due to network error:', err);
     }
   };
 

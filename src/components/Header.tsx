@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User } from '../types';
 import { TabType } from './Navbar';
 import { uploadAvatarApi } from '../lib/api';
-import { ShieldCheck, User as UserIcon, Sparkles, Wallet, Menu, X, CheckSquare, History, Gamepad2, Gift, Trophy, Zap, LogOut, Send, MessageCircle, Camera, Loader2, ChevronRight } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Sparkles, Wallet, Menu, X, CheckSquare, History, Gamepad2, Gift, Trophy, Zap, LogOut, Send, MessageCircle, Camera, Loader2, ChevronRight, Play } from 'lucide-react';
 
 interface HeaderProps {
   user: User | null;
@@ -129,6 +129,16 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {/* Quick Tutorial Button */}
+          <button
+            onClick={() => onSelectTab?.('tutorial')}
+            className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1.5 rounded-xl text-xs font-black hover:bg-amber-500/30 transition-all flex items-center gap-1 shadow-md cursor-pointer"
+            title="Watch Tutorial Reel"
+          >
+            <Play className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+            <span className="hidden sm:inline">ভিডিও</span>
+          </button>
+
           {/* Quick Telegram Helpline Widget */}
           <a
             href="https://t.me/xnhelpline"
@@ -321,6 +331,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="text-[10px] font-black uppercase tracking-wider text-amber-400/80 px-1 pt-1">
                   🚀 Main Navigation
                 </div>
+
+                <button
+                  onClick={() => handleNavClick('tutorial')}
+                  className="w-full p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 to-orange-500/10 hover:from-amber-500/30 border border-amber-500/40 text-amber-200 font-extrabold text-xs flex items-center justify-between transition-all group shadow-sm cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                      <Play className="w-4 h-4 fill-amber-400" />
+                    </div>
+                    <span>ভিডিও দেখুন (Tutorial Guide)</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-amber-400/50 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+                </button>
 
                 <button
                   onClick={() => handleNavClick('task')}

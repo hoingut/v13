@@ -221,6 +221,11 @@ export async function claimDailyCheckInApi(userId: string) {
   return res.json();
 }
 
+export async function fetchPublicSettingsApi() {
+  const res = await fetch('/api/settings/public');
+  return res.json();
+}
+
 export async function uploadAvatarApi(userId: string, imageBase64: string) {
   const res = await fetch('/api/user/upload-avatar', {
     method: 'POST',

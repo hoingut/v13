@@ -15,8 +15,24 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
   const [accountNumber, setAccountNumber] = useState('');
   const [coinsAmountInput, setCoinsAmountInput] = useState<string>('250000');
   const [takaAmountInput, setTakaAmountInput] = useState<string>('300');
-  const [referralsCount, setReferralsCount] = useState<number>(0);
-  const [myWithdrawals, setMyWithdrawals] = useState<WithdrawalRecord[]>([]);
+  const [referralsCount, setReferralsCount] = useState<number>(() => {
+    if (!user) return 0;
+    try {
+      const cached = localStorage.getItem(`nxb_refcount_cache_${user.id}`);
+      return cached ? Number(cached) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [myWithdrawals, setMyWithdrawals] = useState<WithdrawalRecord[]>(() => {
+    if (!user) return [];
+    try {
+      const cached = localStorage.getItem(`nxb_with_cache_${user.id}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,16 +55,22 @@ export const WithdrawView: React.FC<WithdrawViewProps> = ({ user, onUpdateUser, 
 
   const loadData = async () => {
     if (!user) return;
-    // Fetch user referrals count
-    const refRes = await fetchReferralsApi(user.id);
-    if (refRes.success && refRes.referrals) {
-      setReferralsCount(refRes.referrals.length);
-    }
+    try {
+      // Fetch user referrals count
+      const refRes = await fetchReferralsApi(user.id);
+      if (refRes.success && refRes.referrals) {
+        setReferralsCount(refRes.referrals.length);
+        localStorage.setItem(`nxb_refcount_cache_${user.id}`, String(refRes.referrals.length));
+      }
 
-    // Fetch past withdrawals
-    const wRes = await fetchWithdrawalsApi(user.id);
-    if (wRes.success && wRes.withdrawals) {
-      setMyWithdrawals(wRes.withdrawals);
+      // Fetch past withdrawals
+      const wRes = await fetchWithdrawalsApi(user.id);
+      if (wRes.success && wRes.withdrawals) {
+        setMyWithdrawals(wRes.withdrawals);
+        localStorage.setItem(`nxb_with_cache_${user.id}`, JSON.stringify(wRes.withdrawals));
+      }
+    } catch (err) {
+      console.warn('[Cache] Using cached withdraw records due to network error:', err);
     }
   };
 

@@ -10,8 +10,24 @@ interface HistoryViewProps {
 
 export const HistoryView: React.FC<HistoryViewProps> = ({ user, onOpenAuth }) => {
   const [activeTab, setActiveTab] = useState<'submissions' | 'withdrawals'>('submissions');
-  const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
+  const [submissions, setSubmissions] = useState<TaskSubmission[]>(() => {
+    if (!user) return [];
+    try {
+      const cached = localStorage.getItem(`nxb_subs_cache_${user.id}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>(() => {
+    if (!user) return [];
+    try {
+      const cached = localStorage.getItem(`nxb_with_cache_${user.id}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -22,7 +38,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ user, onOpenAuth }) =>
 
   const loadHistory = async () => {
     if (!user) return;
-    setLoading(true);
+    // Don't show blocking loading spinner if we already have cached items to display immediately
+    if (submissions.length === 0 && withdrawals.length === 0) {
+      setLoading(true);
+    }
 
     try {
       const [subRes, withRes] = await Promise.all([
@@ -30,8 +49,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ user, onOpenAuth }) =>
         fetchWithdrawalsApi(user.id)
       ]);
 
-      if (subRes.submissions) setSubmissions(subRes.submissions);
-      if (withRes.withdrawals) setWithdrawals(withRes.withdrawals);
+      if (subRes.submissions) {
+        setSubmissions(subRes.submissions);
+        localStorage.setItem(`nxb_subs_cache_${user.id}`, JSON.stringify(subRes.submissions));
+      }
+      if (withRes.withdrawals) {
+        setWithdrawals(withRes.withdrawals);
+        localStorage.setItem(`nxb_with_cache_${user.id}`, JSON.stringify(withRes.withdrawals));
+      }
     } catch (err) {
       console.error('Error loading history:', err);
     } finally {

@@ -29,6 +29,10 @@ let systemSettings: SystemSettings = {
   rechargeIntervalHours: 6,
   defaultHitDamage: 0.5,
   adminEmail: 'admin@gmail.com',
+  tutorialFbVideoUrl: 'https://www.facebook.com/reel/1148805566373760',
+  supportTelegramUrl: 'https://t.me/xnhelpline',
+  channelTelegramUrl: 'https://t.me/xnrewared',
+  popupWelcomeText: 'ভিডিও দেখুন! (Tutorial)',
 };
 
 // In-memory persistent state sync to ensure 100% smooth execution
@@ -1109,13 +1113,28 @@ app.get('/api/leaderboard', (req, res) => {
   res.json({ success: true, leaderboard: allUsers });
 });
 
-// 13. Admin: System Settings
+// 13. Admin & Public System Settings
+app.get('/api/settings/public', (req, res) => {
+  res.json({
+    success: true,
+    settings: {
+      tutorialFbVideoUrl: systemSettings.tutorialFbVideoUrl || 'https://www.facebook.com/reel/1148805566373760',
+      supportTelegramUrl: systemSettings.supportTelegramUrl || 'https://t.me/xnhelpline',
+      channelTelegramUrl: systemSettings.channelTelegramUrl || 'https://t.me/xnrewared',
+      popupWelcomeText: systemSettings.popupWelcomeText || 'ভিডিও দেখুন! (Tutorial)',
+    }
+  });
+});
+
 app.get('/api/admin/settings', (req, res) => {
   res.json({ success: true, settings: systemSettings });
 });
 
 app.post('/api/admin/settings', (req, res) => {
-  const { imgbbApiKey, brevoApiKey, resendApiKey, brevoDailyLimit, resendDailyLimit } = req.body;
+  const {
+    imgbbApiKey, brevoApiKey, resendApiKey, brevoDailyLimit, resendDailyLimit,
+    tutorialFbVideoUrl, supportTelegramUrl, channelTelegramUrl, popupWelcomeText
+  } = req.body;
   if (imgbbApiKey !== undefined) {
     systemSettings.imgbbApiKey = imgbbApiKey;
     failedImgbbKeys.clear(); // Clear failed keys on admin update so corrected keys can be re-tested
@@ -1124,6 +1143,10 @@ app.post('/api/admin/settings', (req, res) => {
   if (resendApiKey !== undefined) systemSettings.resendApiKey = resendApiKey;
   if (brevoDailyLimit !== undefined) systemSettings.brevoDailyLimit = Number(brevoDailyLimit);
   if (resendDailyLimit !== undefined) systemSettings.resendDailyLimit = Number(resendDailyLimit);
+  if (tutorialFbVideoUrl !== undefined) systemSettings.tutorialFbVideoUrl = tutorialFbVideoUrl;
+  if (supportTelegramUrl !== undefined) systemSettings.supportTelegramUrl = supportTelegramUrl;
+  if (channelTelegramUrl !== undefined) systemSettings.channelTelegramUrl = channelTelegramUrl;
+  if (popupWelcomeText !== undefined) systemSettings.popupWelcomeText = popupWelcomeText;
 
   res.json({ success: true, settings: systemSettings, message: 'Settings updated successfully!' });
 });

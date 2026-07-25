@@ -76,6 +76,10 @@ export interface SystemSettings {
   rechargeIntervalHours: number;
   defaultHitDamage: number;
   adminEmail: string;
+  tutorialFbVideoUrl?: string;
+  supportTelegramUrl?: string;
+  channelTelegramUrl?: string;
+  popupWelcomeText?: string;
 }
 
 export interface TapResponse {

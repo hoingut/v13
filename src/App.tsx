@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from './types';
-import { fetchUserApi, syncUserApi } from './lib/api';
+import { fetchUserApi, syncUserApi, fetchPublicSettingsApi } from './lib/api';
 import { Header } from './components/Header';
 import { Navbar, TabType } from './components/Navbar';
 import { AirdropTapGame } from './components/AirdropTapGame';
@@ -13,14 +13,48 @@ import { ReferralView } from './components/ReferralView';
 import { WithdrawView } from './components/WithdrawView';
 import { AdminView } from './components/AdminView';
 import { AuthModal } from './components/AuthModal';
+import { WelcomePopup } from './components/WelcomePopup';
+import { TutorialView } from './components/TutorialView';
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  // ⚡ Instant Optimistic Load: Read user from localStorage/cookie cache on initial render
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const cached = localStorage.getItem('nxb_user_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.id) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error reading user cache on refresh:', e);
+    }
+    return null;
+  });
   const [activeTab, setActiveTab] = useState<TabType>('airdrop');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [urlRefCode, setUrlRefCode] = useState<string>('');
+  const [showWelcomePopup, setShowWelcomePopup] = useState(() => {
+    const shown = sessionStorage.getItem('nxb_popup_shown');
+    return !shown;
+  });
+  const [publicSettings, setPublicSettings] = useState<{
+    tutorialFbVideoUrl?: string;
+    supportTelegramUrl?: string;
+    channelTelegramUrl?: string;
+    popupWelcomeText?: string;
+  }>({});
 
-  // Extract ?ref= Referral code from URL if present
+  // Auto-persist latest user state to localStorage whenever it changes
+  useEffect(() => {
+    if (user && user.id) {
+      localStorage.setItem('nxb_user_id', user.id);
+      localStorage.setItem('nxb_user_cache', JSON.stringify(user));
+    }
+  }, [user]);
+
+  // Extract ?ref= Referral code from URL if present & background sync session
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
@@ -31,15 +65,27 @@ export default function App() {
       }
     }
 
-    // Load saved user session
+    // Background sync: Fetch fresh user data from server silently
     const savedUserId = localStorage.getItem('nxb_user_id');
     if (savedUserId) {
       fetchUserApi(savedUserId).then(res => {
         if (res.success && res.user) {
           setUser(res.user);
+          localStorage.setItem('nxb_user_cache', JSON.stringify(res.user));
         }
+      }).catch(err => {
+        console.warn('[Network] Offline or slow connection, using instant cached user data:', err);
       });
     }
+
+    // Fetch public settings for popup & tutorial reel
+    fetchPublicSettingsApi().then(res => {
+      if (res && res.success && res.settings) {
+        setPublicSettings(res.settings);
+      }
+    }).catch(err => {
+      console.warn('Could not load public settings:', err);
+    });
   }, []);
 
   const userRef = useRef<User | null>(user);
@@ -55,7 +101,11 @@ export default function App() {
         try {
           const res = await syncUserApi(currentUser.id, currentUser);
           if (res && res.success && res.user) {
-            setUser(prev => (prev ? { ...prev, energy: res.user.energy } : res.user));
+            setUser(prev => {
+              const next = prev ? { ...prev, energy: res.user.energy } : res.user;
+              if (next) localStorage.setItem('nxb_user_cache', JSON.stringify(next));
+              return next;
+            });
           }
         } catch (err) {
           console.error('Periodic 10s auto sync error:', err);
@@ -79,17 +129,25 @@ export default function App() {
   const handleUserUpdate = (updatedUser: User) => {
     setUser(updatedUser);
     localStorage.setItem('nxb_user_id', updatedUser.id);
+    localStorage.setItem('nxb_user_cache', JSON.stringify(updatedUser));
   };
 
   const handleAuthSuccess = (loggedUser: User) => {
     setUser(loggedUser);
     localStorage.setItem('nxb_user_id', loggedUser.id);
+    localStorage.setItem('nxb_user_cache', JSON.stringify(loggedUser));
     setShowAuthModal(false);
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('nxb_user_id');
+    localStorage.removeItem('nxb_user_cache');
+  };
+
+  const handleClosePopup = () => {
+    setShowWelcomePopup(false);
+    sessionStorage.setItem('nxb_popup_shown', 'true');
   };
 
   const handleTabChange = (tab: TabType) => {
@@ -183,6 +241,13 @@ export default function App() {
               onOpenAuth={() => setShowAuthModal(true)}
             />
           )}
+
+          {activeTab === 'tutorial' && (
+            <TutorialView
+              fbVideoUrl={publicSettings.tutorialFbVideoUrl}
+              onSelectTab={handleTabChange}
+            />
+          )}
         </main>
 
         {/* Bottom Navigation Bar */}
@@ -200,6 +265,17 @@ export default function App() {
           initialReferralCode={urlRefCode}
         />
       )}
+
+      {/* Welcome Announcement & Tutorial Popup */}
+      <WelcomePopup
+        user={user}
+        isOpen={showWelcomePopup}
+        onClose={handleClosePopup}
+        onSelectTab={handleTabChange}
+        supportUrl={publicSettings.supportTelegramUrl}
+        channelUrl={publicSettings.channelTelegramUrl}
+        welcomeText={publicSettings.popupWelcomeText}
+      />
     </div>
   );
 }

@@ -33,6 +33,10 @@ export const AdminView: React.FC = () => {
   const [imgbbKey, setImgbbKey] = useState('');
   const [brevoKey, setBrevoKey] = useState('');
   const [resendKey, setResendKey] = useState('');
+  const [fbVideoUrl, setFbVideoUrl] = useState('');
+  const [supportUrl, setSupportUrl] = useState('');
+  const [channelUrl, setChannelUrl] = useState('');
+  const [welcomeText, setWelcomeText] = useState('');
 
   // User adjustment state
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -124,6 +128,10 @@ export const AdminView: React.FC = () => {
       setImgbbKey(res.settings.imgbbApiKey || '');
       setBrevoKey(res.settings.brevoApiKey || '');
       setResendKey(res.settings.resendApiKey || '');
+      setFbVideoUrl(res.settings.tutorialFbVideoUrl || 'https://www.facebook.com/reel/1148805566373760');
+      setSupportUrl(res.settings.supportTelegramUrl || 'https://t.me/xnhelpline');
+      setChannelUrl(res.settings.channelTelegramUrl || 'https://t.me/xnrewared');
+      setWelcomeText(res.settings.popupWelcomeText || 'ভিডিও দেখুন! (Tutorial)');
     }
   };
 
@@ -167,6 +175,10 @@ export const AdminView: React.FC = () => {
       imgbbApiKey: imgbbKey.trim(),
       brevoApiKey: brevoKey.trim(),
       resendApiKey: resendKey.trim(),
+      tutorialFbVideoUrl: fbVideoUrl.trim(),
+      supportTelegramUrl: supportUrl.trim(),
+      channelTelegramUrl: channelUrl.trim(),
+      popupWelcomeText: welcomeText.trim(),
     });
 
     if (res.success && res.settings) {
@@ -703,6 +715,57 @@ export const AdminView: React.FC = () => {
               placeholder="re_..."
               className="w-full bg-[#140b08] border border-[#3e2a22] rounded-xl p-2.5 text-amber-100 font-mono"
             />
+          </div>
+
+          <div className="pt-3 border-t border-[#3e2a22]">
+            <h3 className="text-xs font-black text-amber-300 uppercase tracking-wider mb-2">🎬 Tutorial Reel & Welcome Popup Settings</h3>
+            
+            <div className="space-y-2.5">
+              <div>
+                <label className="font-bold text-amber-300 block mb-1">Facebook Tutorial Video/Reel URL</label>
+                <input
+                  type="text"
+                  value={fbVideoUrl}
+                  onChange={e => setFbVideoUrl(e.target.value)}
+                  placeholder="https://www.facebook.com/reel/1148805566373760"
+                  className="w-full bg-[#140b08] border border-[#3e2a22] rounded-xl p-2.5 text-amber-100 font-mono text-[11px]"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-amber-300 block mb-1">Popup Welcome Button Text</label>
+                <input
+                  type="text"
+                  value={welcomeText}
+                  onChange={e => setWelcomeText(e.target.value)}
+                  placeholder="ভিডিও দেখুন! (Tutorial)"
+                  className="w-full bg-[#140b08] border border-[#3e2a22] rounded-xl p-2.5 text-amber-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-amber-300 block mb-1">Support Helpline Telegram Link</label>
+                  <input
+                    type="text"
+                    value={supportUrl}
+                    onChange={e => setSupportUrl(e.target.value)}
+                    placeholder="https://t.me/xnhelpline"
+                    className="w-full bg-[#140b08] border border-[#3e2a22] rounded-xl p-2.5 text-amber-100 font-mono text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-amber-300 block mb-1">Official Channel Telegram Link</label>
+                  <input
+                    type="text"
+                    value={channelUrl}
+                    onChange={e => setChannelUrl(e.target.value)}
+                    placeholder="https://t.me/xnrewared"
+                    className="w-full bg-[#140b08] border border-[#3e2a22] rounded-xl p-2.5 text-amber-100 font-mono text-[11px]"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <button

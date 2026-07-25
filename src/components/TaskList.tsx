@@ -10,8 +10,23 @@ interface TaskListProps {
 }
 
 export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAuth }) => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const cached = localStorage.getItem('nxb_tasks_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [submissions, setSubmissions] = useState<TaskSubmission[]>(() => {
+    if (!user) return [];
+    try {
+      const cached = localStorage.getItem(`nxb_subs_cache_${user.id}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [filterTab, setFilterTab] = useState<'all' | 'daily' | 'one_time'>('all');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [proofImageBase64, setProofImageBase64] = useState<string>('');
@@ -26,14 +41,28 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
   }, [user]);
 
   const loadTasks = async () => {
-    const res = await fetchTasksApi();
-    if (res.tasks) setTasks(res.tasks);
+    try {
+      const res = await fetchTasksApi();
+      if (res.tasks) {
+        setTasks(res.tasks);
+        localStorage.setItem('nxb_tasks_cache', JSON.stringify(res.tasks));
+      }
+    } catch (err) {
+      console.warn('[Cache] Using cached tasks due to network error:', err);
+    }
   };
 
   const loadMySubmissions = async () => {
     if (!user) return;
-    const res = await fetchMySubmissionsApi(user.id);
-    if (res.submissions) setSubmissions(res.submissions);
+    try {
+      const res = await fetchMySubmissionsApi(user.id);
+      if (res.submissions) {
+        setSubmissions(res.submissions);
+        localStorage.setItem(`nxb_subs_cache_${user.id}`, JSON.stringify(res.submissions));
+      }
+    } catch (err) {
+      console.warn('[Cache] Using cached submissions due to network error:', err);
+    }
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

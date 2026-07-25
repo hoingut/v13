@@ -3,16 +3,28 @@ import { fetchLeaderboardApi } from '../lib/api';
 import { Trophy, Medal, Crown } from 'lucide-react';
 
 export const LeaderboardView: React.FC = () => {
-  const [leaders, setLeaders] = useState<any[]>([]);
+  const [leaders, setLeaders] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('nxb_leaderboard_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     loadLeaderboard();
   }, []);
 
   const loadLeaderboard = async () => {
-    const res = await fetchLeaderboardApi();
-    if (res.leaderboard) {
-      setLeaders(res.leaderboard);
+    try {
+      const res = await fetchLeaderboardApi();
+      if (res.leaderboard) {
+        setLeaders(res.leaderboard);
+        localStorage.setItem('nxb_leaderboard_cache', JSON.stringify(res.leaderboard));
+      }
+    } catch (err) {
+      console.warn('[Cache] Using cached leaderboard due to network error:', err);
     }
   };
 
