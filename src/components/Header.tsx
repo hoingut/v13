@@ -154,26 +154,6 @@ export const Header: React.FC<HeaderProps> = ({
             <Send className="w-3.5 h-3.5 text-[#38bdf8]" />
             <span className="hidden sm:inline">Support</span>
           </a>
-
-          {user && (
-            <button
-              onClick={onOpenWithdraw}
-              className="bg-gradient-to-r from-emerald-500 to-teal-600 text-black font-extrabold px-3 py-1.5 rounded-xl text-xs shadow-md border border-emerald-400/50 hover:from-emerald-400 hover:to-teal-500 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
-            >
-              <Wallet className="w-3.5 h-3.5" />
-              <span>Withdraw</span>
-            </button>
-          )}
-
-          {user?.role === 'admin' && (
-            <button
-              onClick={onOpenAdmin}
-              className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1.5 rounded-xl text-xs font-semibold hover:bg-amber-500/30 transition-all flex items-center gap-1 cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Admin</span>
-            </button>
-          )}
         </div>
       </header>
 

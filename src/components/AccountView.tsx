@@ -420,6 +420,18 @@ export const AccountView: React.FC<AccountViewProps> = ({
         </div>
       </div>
 
+      {/* Admin Panel Button in Account View */}
+      {user.role === 'admin' && (
+        <button
+          onClick={onOpenAdmin}
+          className="w-full py-3.5 px-4 rounded-3xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xl border-2 border-amber-300 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
+        >
+          <Sparkles className="w-4 h-4 fill-black" />
+          <span>অ্যাডমিন ড্যাশবোর্ড খুলুন (Admin Panel Dashboard)</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      )}
+
       {/* Referral Link & 10 Taka Reward Banner */}
       <div className="bg-gradient-to-br from-[#382015] via-[#24140e] to-[#150a06] p-5 rounded-3xl border-t border-t-amber-400/60 border-x border-x-amber-500/30 border-b border-b-black/80 shadow-[0_15px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(245,158,11,0.15)] relative overflow-hidden">
         <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
