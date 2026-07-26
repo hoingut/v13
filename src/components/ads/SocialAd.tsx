@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 
-const SOCIAL_AD_INTERVAL_MS = 60 * 60 * 1000; // 1 hour cooldown between social ads
+const SOCIAL_AD_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes cooldown between social ads
 
 interface SocialAdProps {
   isLoggedIn?: boolean;
@@ -55,7 +55,7 @@ export const SocialAd: React.FC<SocialAdProps> = ({ isLoggedIn = false }) => {
         try {
           localStorage.setItem('last_social_ad_time', Date.now().toString());
         } catch (e) {}
-        console.log('[Ad] Social bar ad active on Airdrop page (Next cycle in 1 hour)');
+        console.log('[Ad] Social bar ad active on Airdrop page (Next cycle in 5 mins)');
       }
     }, 4000);
 

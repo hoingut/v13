@@ -31,6 +31,7 @@ interface AccountViewProps {
   onOpenWithdraw: () => void;
   onOpenAdmin: () => void;
   onLogout: () => void;
+  onOpenOnboarding?: () => void;
 }
 
 const STREAK_DAYS = [
@@ -50,6 +51,7 @@ export const AccountView: React.FC<AccountViewProps> = ({
   onOpenWithdraw,
   onOpenAdmin,
   onLogout,
+  onOpenOnboarding,
 }) => {
   const [copied, setCopied] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -335,6 +337,32 @@ export const AccountView: React.FC<AccountViewProps> = ({
           )}
         </button>
       </div>
+
+      {/* Listing Schedule & Onboarding Guide Banner */}
+      {onOpenOnboarding && (
+        <button
+          onClick={onOpenOnboarding}
+          className="w-full bg-gradient-to-r from-cyan-950 via-teal-950 to-emerald-950 p-4 rounded-3xl border border-cyan-400/60 shadow-[0_10px_30px_rgba(6,182,212,0.25)] flex items-center justify-between hover:scale-[1.01] active:scale-98 transition-all cursor-pointer group text-left my-2"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-teal-400 flex items-center justify-center text-black shadow-lg shrink-0">
+              <Sparkles className="w-6 h-6 fill-black animate-spin" style={{ animationDuration: '8s' }} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-cyan-300 uppercase tracking-widest">Listing Roadmap</span>
+                <span className="bg-cyan-400 text-black text-[9px] font-black px-2 py-0.5 rounded-full">AUG 15, 2026</span>
+              </div>
+              <p className="text-sm font-black text-white mt-0.5 group-hover:text-cyan-200 transition-colors">
+                লিস্টিং শিডিউল ও অনবোর্ডিং গাইড দেখুন
+              </p>
+            </div>
+          </div>
+          <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 group-hover:bg-cyan-400 group-hover:text-black transition-all shrink-0">
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </button>
+      )}
 
       {/* Official Telegram Channel & Support Section */}
       <div className="grid grid-cols-2 gap-3">

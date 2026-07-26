@@ -15,7 +15,7 @@ import { AdminView } from './components/AdminView';
 import { AuthModal } from './components/AuthModal';
 import { WelcomePopup } from './components/WelcomePopup';
 import { TutorialView } from './components/TutorialView';
-import { PopunderAd } from './components/ads/PopunderAd';
+import { OnboardingModal } from './components/OnboardingModal';
 
 export default function App() {
   // ⚡ Instant Optimistic Load: Read user from localStorage/cookie cache on initial render
@@ -36,6 +36,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('airdrop');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [urlRefCode, setUrlRefCode] = useState<string>('');
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    const completed = localStorage.getItem('nxb_onboarding_completed_v2');
+    return !completed;
+  });
   const [showWelcomePopup, setShowWelcomePopup] = useState(() => {
     const shown = sessionStorage.getItem('nxb_popup_shown');
     return !shown;
@@ -161,9 +165,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#1c1310] via-[#160d0a] to-[#110806] text-amber-50 font-sans relative overflow-x-hidden">
-      {/* 4-Hour Popunder Ad Script Controller (Active only when logged in) */}
-      <PopunderAd isLoggedIn={!!user} />
-
       {/* Background ambient lighting glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md h-72 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -188,6 +189,7 @@ export default function App() {
               onUpdateUser={handleUserUpdate}
               onOpenAuth={() => setShowAuthModal(true)}
               onOpenUpgrades={() => setActiveTab('upgrades')}
+              onOpenOnboarding={() => setShowOnboarding(true)}
             />
           )}
 
@@ -222,6 +224,7 @@ export default function App() {
               onOpenWithdraw={() => handleTabChange('withdraw')}
               onOpenAdmin={() => setActiveTab('admin')}
               onLogout={handleLogout}
+              onOpenOnboarding={() => setShowOnboarding(true)}
             />
           )}
 
@@ -273,12 +276,20 @@ export default function App() {
       {/* Welcome Announcement & Tutorial Popup */}
       <WelcomePopup
         user={user}
-        isOpen={showWelcomePopup}
+        isOpen={showWelcomePopup && !showOnboarding}
         onClose={handleClosePopup}
         onSelectTab={handleTabChange}
+        onOpenOnboarding={() => setShowOnboarding(true)}
         supportUrl={publicSettings.supportTelegramUrl}
         channelUrl={publicSettings.channelTelegramUrl}
         welcomeText={publicSettings.popupWelcomeText}
+      />
+
+      {/* 3-Screen Interactive Onboarding & Listing Guide Modal */}
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onFinish={() => setShowOnboarding(false)}
       />
     </div>
   );

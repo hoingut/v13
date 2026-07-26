@@ -14,6 +14,7 @@ interface AirdropTapGameProps {
   onUpdateUser: (user: User) => void;
   onOpenAuth: () => void;
   onOpenUpgrades: () => void;
+  onOpenOnboarding?: () => void;
 }
 
 interface FloatingTap {
@@ -28,6 +29,7 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
   onUpdateUser,
   onOpenAuth,
   onOpenUpgrades,
+  onOpenOnboarding,
 }) => {
   const [floatingTaps, setFloatingTaps] = useState<FloatingTap[]>([]);
   const [isTapping, setIsTapping] = useState(false);
@@ -157,6 +159,7 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
 
   const hpPercent = user ? Math.max(0, Math.min(100, Math.round((user.subjectHp / user.subjectMaxHp) * 100))) : 100;
   const energyPercent = user ? Math.max(0, Math.min(100, Math.round((user.energy / user.maxEnergy) * 100))) : 100;
+  const isRegenerating = user ? user.energy < user.maxEnergy : false;
 
   return (
     <div className="flex flex-col items-center justify-between min-h-[78vh] px-4 py-3 relative text-amber-50 select-none">
@@ -166,10 +169,24 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
       {/* Top $NXB Score Board - Luxury Golden Box */}
       <div className="w-full flex flex-col items-center gap-2 my-1">
         
-        {/* Golden Mining Badge */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border border-amber-400/40 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-          <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">Official $NXB Mining Phase</span>
+        {/* Golden Mining Badge & Listing Milestone Button */}
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border border-amber-400/40 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-300">Official $NXB Mining</span>
+          </div>
+
+          {onOpenOnboarding && (
+            <button
+              onClick={onOpenOnboarding}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/20 via-teal-500/20 to-cyan-500/20 border border-cyan-400/60 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:scale-105 active:scale-95 transition-all cursor-pointer group animate-pulse"
+            >
+              <span className="w-2 h-2 rounded-full bg-cyan-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-cyan-300 group-hover:text-white transition-colors">
+                🚀 Listing in Aug 15
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Golden Score Card with Inner Glow & Depth */}
@@ -314,15 +331,22 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
             </span>
           </div>
 
-          <div className="text-xs font-mono font-black text-amber-300 bg-[#160b07] px-2.5 py-1 rounded-xl border border-amber-500/30 shadow-inner">
-            {user ? user.energy : 1000} / {user ? user.maxEnergy : 1000} ⚡
+          <div className={`text-xs font-mono font-black text-amber-300 bg-[#160b07] px-2.5 py-1 rounded-xl border transition-colors ${
+            isRegenerating ? 'border-amber-400/60 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'border-amber-500/30 shadow-inner'
+          }`}>
+            <span>{user ? user.energy : 1000} / {user ? user.maxEnergy : 1000}</span>
+            <span className={`inline-block ml-1 ${isRegenerating ? 'animate-bounce text-amber-200' : ''}`}>⚡</span>
           </div>
         </div>
 
         {/* Energy Progress Bar with Shimmer */}
-        <div className="w-full h-3.5 bg-[#120805] rounded-full overflow-hidden border border-[#482a1d] shadow-inner p-0.5 relative">
+        <div className={`w-full h-3.5 bg-[#120805] rounded-full overflow-hidden border border-[#482a1d] shadow-inner p-0.5 relative transition-all ${
+          isRegenerating ? 'animate-pulse shadow-[0_0_14px_rgba(245,158,11,0.45)] border-amber-500/60' : ''
+        }`}>
           <div
-            className="h-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-300 transition-all duration-300 rounded-full shadow-[0_0_12px_#f59e0b] relative"
+            className={`h-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-300 transition-all duration-300 rounded-full shadow-[0_0_12px_#f59e0b] relative ${
+              isRegenerating ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''
+            }`}
             style={{ width: `${energyPercent}%` }}
           >
             <div className="absolute right-0 top-0 bottom-0 w-2.5 bg-white rounded-full blur-[1px] opacity-80 animate-pulse" />
