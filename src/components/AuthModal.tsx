@@ -299,7 +299,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
                   Enter 6-digit OTP code sent to <strong className="text-amber-400 font-mono">{email}</strong>
                 </p>
                 <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-300">
-                  <span>কোটা ব্যবহার: <strong>{sessionStorage.getItem(`otp_count_${email.toLowerCase().trim()}`) || '1'}/2 বার</strong> আপনি আেনার মেইল ব্কস চেক করুন, ওখানে না থাকলে স্প্যামবক্স চেক করুন, সমস্যা হলে মেসেজ দুন : @xnhelpline</span>
+                  <span>কোটা ব্যবহার: <strong>{sessionStorage.getItem(`otp_count_${email.toLowerCase().trim()}`) || '1'}/2 বার</strong> আপনি আপনার মেইল বক্স চেক করুন, ওখানে না থাকলে স্প্যামবক্স চেক করুন, সমস্যা হলে মেসেজ দিন : @xnhelpline</span>
                 </div>
               </div>
 
