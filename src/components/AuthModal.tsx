@@ -38,7 +38,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
     const currentEmailCount = Number(sessionStorage.getItem(`otp_count_${cleanEmail}`) || '0');
     const currentSessionCount = Number(sessionStorage.getItem('otp_session_total') || '0');
     if (currentEmailCount >= 2 || currentSessionCount >= 2) {
-      setErrorMessage('একটি সেশনে এবং একটি ইমেইলে সর্বোচ্চ ২ বারের বেশি ওটিপি (OTP) পাঠানো যাবে না! নিরাপত্তা সুরক্ষায় ওটিপি পাঠানো বন্ধ রয়েছে। কিছুক্ষণ পর বা নতুন সেশনে চেষ্টা করুন।');
+      setErrorMessage('আপনি মেইল বক্স অথবা স্প্যাম ফোল্ডার চেক করুন! একটি সেশনে এবং একটি ইমেইলে সর্বোচ্চ ২ বারের বেশি ওটিপি (OTP) পাঠানো যাবে না! নিরাপত্তা সুরক্ষায় ওটিপি পাঠানো বন্ধ রয়েছে। কিছুক্ষণ পর বা নতুন সেশনে চেষ্টা করুন, অথবা সাপোর্টে মোসেজ দিন : https://t.me/xnhelpline ।');
       return;
     }
 
@@ -134,7 +134,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
             {mode === 'register' ? 'Join XN Reward' : 'Welcome Back'}
           </h2>
           <p className="text-xs text-amber-300/70">
-            Gmail verification via Brevo & Resend SMTP
+            Z++ Encrypting..
           </p>
         </div>
 
@@ -299,7 +299,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
                   Enter 6-digit OTP code sent to <strong className="text-amber-400 font-mono">{email}</strong>
                 </p>
                 <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-300">
-                  <span>কোটা ব্যবহার: <strong>{sessionStorage.getItem(`otp_count_${email.toLowerCase().trim()}`) || '1'}/2 বার</strong></span>
+                  <span>কোটা ব্যবহার: <strong>{sessionStorage.getItem(`otp_count_${email.toLowerCase().trim()}`) || '1'}/2 বার</strong> আপনি আেনার মেইল ব্কস চেক করুন, ওখানে না থাকলে স্প্যামবক্স চেক করুন, সমস্যা হলে মেসেজ দুন : @xnhelpline</span>
                 </div>
               </div>
 
