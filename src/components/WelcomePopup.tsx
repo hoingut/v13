@@ -61,20 +61,6 @@ export const WelcomePopup: React.FC<WelcomePopupProps> = ({
 
         {/* Action Buttons Stack */}
         <div className="relative z-10 space-y-3">
-          {/* New Onboarding & Listing Guide Button */}
-          {onOpenOnboarding && (
-            <button
-              onClick={() => {
-                onClose();
-                onOpenOnboarding();
-              }}
-              className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-black font-black text-sm sm:text-base shadow-[0_0_25px_rgba(6,182,212,0.4)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer border border-cyan-200 animate-pulse"
-            >
-              <Sparkles className="w-5 h-5 fill-black stroke-black shrink-0 animate-spin" style={{ animationDuration: '6s' }} />
-              <span>🚀 লিস্টিং গাইড ও অনবোর্ডিং (Aug 15 Listing)</span>
-            </button>
-          )}
-
           {/* 1. Tutorial Video Button */}
           <button
             onClick={() => {
@@ -121,7 +107,7 @@ export const WelcomePopup: React.FC<WelcomePopupProps> = ({
             className="w-full py-3.5 px-5 rounded-2xl bg-[#180d08]/90 hover:bg-[#25150e] border border-[#3e2a22] hover:border-amber-500/50 text-amber-300/90 font-extrabold text-sm sm:text-base transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-sm active:scale-98"
           >
             <Info className="w-5 h-5 text-amber-400 shrink-0" />
-            <span>বিস্তারিত জানুন (About us,)</span>
+            <span>বিস্তারিত জানুন</span>
           </button>
         </div>
 
