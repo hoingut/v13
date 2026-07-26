@@ -161,8 +161,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#1c1310] via-[#160d0a] to-[#110806] text-amber-50 font-sans relative overflow-x-hidden">
-      {/* 2-Hour Popunder Ad Script Controller */}
-      <PopunderAd />
+      {/* 4-Hour Popunder Ad Script Controller (Active only when logged in) */}
+      <PopunderAd isLoggedIn={!!user} />
 
       {/* Background ambient lighting glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md h-72 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />

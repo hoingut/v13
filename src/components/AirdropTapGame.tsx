@@ -160,8 +160,8 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
 
   return (
     <div className="flex flex-col items-center justify-between min-h-[78vh] px-4 py-3 relative text-amber-50 select-none">
-      {/* 🌐 Social Ad (Active ONLY on Airdrop Page) */}
-      <SocialAd />
+      {/* 🌐 Social Ad (Active ONLY on Airdrop Page & When Logged In) */}
+      <SocialAd isLoggedIn={!!user} />
       
       {/* Top $NXB Score Board - Luxury Golden Box */}
       <div className="w-full flex flex-col items-center gap-2 my-1">
@@ -362,7 +362,7 @@ export const AirdropTapGame: React.FC<AirdropTapGameProps> = ({
             </div>
 
             {/* The Sponsored Banner Ad */}
-            <BannerAd />
+            <BannerAd isLoggedIn={!!user} />
 
             <div className="pt-1">
               <button

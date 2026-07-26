@@ -1,9 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 
-export const BannerAd: React.FC = () => {
+interface BannerAdProps {
+  isLoggedIn?: boolean;
+}
+
+export const BannerAd: React.FC<BannerAdProps> = ({ isLoggedIn = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -29,7 +34,9 @@ export const BannerAd: React.FC = () => {
         container.innerHTML = '';
       }
     };
-  }, []);
+  }, [isLoggedIn]);
+
+  if (!isLoggedIn) return null;
 
   return (
     <div className="w-full flex flex-col items-center justify-center my-3 overflow-hidden bg-[#180d08] rounded-2xl border border-amber-500/40 p-3 shadow-inner">
@@ -43,3 +50,4 @@ export const BannerAd: React.FC = () => {
     </div>
   );
 };
+
