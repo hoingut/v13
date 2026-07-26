@@ -38,6 +38,8 @@ let systemSettings: SystemSettings = {
 // In-memory persistent state sync to ensure 100% smooth execution
 const mockUsers: Map<string, User> = new Map();
 const mockOtps: Map<string, { code: string; expiresAt: number }> = new Map();
+const mockDailyOtpStats: Map<string, number> = new Map(); // YYYY-MM-DD -> count
+const mockOtpRequestTracker: Map<string, { count: number; lastReset: number }> = new Map(); // email or sessionKey -> tracker
 const mockTasks: Task[] = [
   {
     id: 'task_1',
@@ -411,12 +413,33 @@ app.get('/api/health', (req, res) => {
 
 // 2. Auth: Send OTP (Gmail only)
 app.post('/api/auth/send-otp', async (req, res) => {
-  const { email } = req.body;
+  const { email, deviceId } = req.body;
   if (!email || !email.toLowerCase().endsWith('@gmail.com')) {
     return res.status(400).json({ error: 'Only Gmail (@gmail.com) addresses are allowed!' });
   }
 
   const cleanEmail = email.toLowerCase().trim();
+  const sessionKey = deviceId ? `${cleanEmail}_${deviceId}` : cleanEmail;
+
+  // Rule: Max 2 OTP requests per session/email
+  const tracker = mockOtpRequestTracker.get(sessionKey) || mockOtpRequestTracker.get(cleanEmail) || { count: 0, lastReset: Date.now() };
+  if (Date.now() - tracker.lastReset > 4 * 60 * 60 * 1000) {
+    tracker.count = 0;
+    tracker.lastReset = Date.now();
+  }
+
+  if (tracker.count >= 2) {
+    return res.status(429).json({
+      error: 'আপনি এই ইমেইলে বা সেশনে সর্বোচ্চ ২ বার ওটিপি (OTP) পাঠিয়েছেন! নিরাপত্তা সুরক্ষায় সাময়িকভাবে ওটিপি পাঠানো বন্ধ রয়েছে। কিছুক্ষণ পর চেষ্টা করুন।'
+    });
+  }
+
+  tracker.count += 1;
+  mockOtpRequestTracker.set(cleanEmail, tracker);
+  if (deviceId) {
+    mockOtpRequestTracker.set(sessionKey, tracker);
+  }
+
   const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = Date.now() + 10 * 60 * 1000;
 
@@ -434,6 +457,12 @@ app.post('/api/auth/send-otp', async (req, res) => {
   }
 
   const emailResult = await sendOtpEmail(cleanEmail, otpCode);
+
+  // Increment daily OTP stats
+  const todayStr = new Date().toISOString().split('T')[0];
+  const currentDailyCount = (mockDailyOtpStats.get(todayStr) || 0) + 1;
+  mockDailyOtpStats.set(todayStr, currentDailyCount);
+
   res.json({
     success: true,
     message: emailResult.message,
@@ -569,14 +598,15 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     if (referrerUser) {
-      // Check Anti-Self Referral Rule (Device ID or Device Name match)
+      // Check Anti-Self Referral Rule (Device ID or Device Name/fingerprint match or same email)
       const isDeviceMatch = 
         (deviceId && referrerUser.deviceId === deviceId) ||
-        (deviceName && referrerUser.deviceName && referrerUser.deviceName.toLowerCase() === deviceName.toLowerCase());
+        (deviceName && referrerUser.deviceName && referrerUser.deviceName.toLowerCase() === deviceName.toLowerCase()) ||
+        (referrerUser.email.toLowerCase() === cleanEmail);
 
       if (isDeviceMatch) {
         return res.status(400).json({
-          error: 'Referral Failed: You cannot use your own device referral link! Same device detected.'
+          error: 'রেফার ব্যর্থ: একই ডিভাইস বা একই ডিভাইসের নাম (Same Device Fingerprint) থেকে নিজের রেফার ব্যবহার করা যাবে না! (Anti-Self Referral Protection)'
         });
       }
 
@@ -682,7 +712,7 @@ app.post('/api/auth/register', async (req, res) => {
 
 // 4. Auth: Login
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, deviceId, deviceName } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
   }
@@ -743,8 +773,42 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'Incorrect password! Please check and try again.' });
   }
 
+  // 1 Account Per Device Restriction Rule on Login
+  if (deviceId && deviceId.trim() !== '') {
+    let deviceAlreadyUsedByOther = false;
+    for (const u of mockUsers.values()) {
+      if (u.deviceId === deviceId && u.email !== cleanEmail && u.id !== user.id) {
+        deviceAlreadyUsedByOther = true;
+        break;
+      }
+    }
+    if (!deviceAlreadyUsedByOther) {
+      try {
+        const { data: devUsers } = await supabase
+          .from('users')
+          .select('id, email')
+          .eq('device_id', deviceId);
+        if (devUsers && devUsers.length > 0) {
+          if (devUsers.some((u: any) => u.email !== cleanEmail && u.id !== user?.id)) {
+            deviceAlreadyUsedByOther = true;
+          }
+        }
+      } catch (err) {
+        console.error('Supabase check login device_id error:', err);
+      }
+    }
+    if (deviceAlreadyUsedByOther) {
+      return res.status(400).json({
+        error: 'একটি ডিভাইস থেকে শুধুমাত্র ১টি অ্যাকাউন্ট ব্যবহার করা যাবে! আপনার এই ডিভাইসে ইতিমধ্যে অন্য একটি অ্যাকাউন্ট রয়েছে।'
+      });
+    }
+  }
+
+  if (deviceId && !user.deviceId) user.deviceId = deviceId;
+  if (deviceName && !user.deviceName) user.deviceName = deviceName;
   user.energy = calculateRechargedEnergy(user);
   user.lastActive = new Date().toISOString();
+  await saveUserToSupabase(user);
 
   res.json({
     success: true,
@@ -1130,6 +1194,33 @@ app.get('/api/settings/public', (req, res) => {
 
 app.get('/api/admin/settings', (req, res) => {
   res.json({ success: true, settings: systemSettings });
+});
+
+app.get('/api/admin/otp-stats', (req, res) => {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayCount = mockDailyOtpStats.get(todayStr) || (systemSettings.brevoUsedToday + systemSettings.resendUsedToday);
+  let totalCount = 0;
+  const history: { date: string; count: number }[] = [];
+
+  if (!mockDailyOtpStats.has(todayStr)) {
+    mockDailyOtpStats.set(todayStr, todayCount);
+  }
+
+  mockDailyOtpStats.forEach((count, date) => {
+    totalCount += count;
+    history.push({ date, count });
+  });
+  history.sort((a, b) => b.date.localeCompare(a.date));
+
+  res.json({
+    success: true,
+    todayDate: todayStr,
+    todayCount,
+    totalCount,
+    history,
+    brevoUsedToday: systemSettings.brevoUsedToday,
+    resendUsedToday: systemSettings.resendUsedToday
+  });
 });
 
 app.post('/api/admin/settings', (req, res) => {

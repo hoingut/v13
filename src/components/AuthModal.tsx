@@ -12,6 +12,7 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initialReferralCode = '' }) => {
   const [mode, setMode] = useState<'register' | 'login'>('register');
   const [step, setStep] = useState<'details' | 'otp'>('details');
+  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -22,21 +23,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Send OTP
+  // Send OTP (Step 1: Check format & quota, then open Email Confirm modal)
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!email.toLowerCase().trim().endsWith('@gmail.com')) {
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail.endsWith('@gmail.com')) {
       setErrorMessage('Only Gmail (@gmail.com) email addresses are allowed!');
       return;
     }
 
+    // Frontend Rate Limit check: Max 2 OTP per session/email
+    const currentEmailCount = Number(sessionStorage.getItem(`otp_count_${cleanEmail}`) || '0');
+    const currentSessionCount = Number(sessionStorage.getItem('otp_session_total') || '0');
+    if (currentEmailCount >= 2 || currentSessionCount >= 2) {
+      setErrorMessage('একটি সেশনে এবং একটি ইমেইলে সর্বোচ্চ ২ বারের বেশি ওটিপি (OTP) পাঠানো যাবে না! নিরাপত্তা সুরক্ষায় ওটিপি পাঠানো বন্ধ রয়েছে। কিছুক্ষণ পর বা নতুন সেশনে চেষ্টা করুন।');
+      return;
+    }
+
+    // Show confirmation modal before sending OTP ("R otp patanor age confirm kore nibe je email thik ase kina")
+    setShowEmailConfirm(true);
+  };
+
+  // Step 2: Actually send OTP after user confirms email
+  const executeSendOtp = async () => {
+    setShowEmailConfirm(false);
+    setErrorMessage(null);
     setLoading(true);
-    const res = await sendOtpApi(email);
+
+    const cleanEmail = email.toLowerCase().trim();
+    const res = await sendOtpApi(cleanEmail);
     setLoading(false);
 
     if (res.success) {
+      const currentEmailCount = Number(sessionStorage.getItem(`otp_count_${cleanEmail}`) || '0') + 1;
+      const currentSessionCount = Number(sessionStorage.getItem('otp_session_total') || '0') + 1;
+      sessionStorage.setItem(`otp_count_${cleanEmail}`, String(currentEmailCount));
+      sessionStorage.setItem('otp_session_total', String(currentSessionCount));
       setStep('otp');
     } else {
       setErrorMessage(res.error || 'Failed to send verification email.');
@@ -142,6 +166,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
           </div>
         )}
 
+        {/* Email Confirmation Overlay ("R otp patanor age confirm kore nibe je email thik ase kina") */}
+        {showEmailConfirm && (
+          <div className="absolute inset-0 z-50 bg-[#1e110d]/95 backdrop-blur-md rounded-3xl p-6 flex flex-col items-center justify-center text-center animate-fadeIn border border-amber-500/40 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 mb-3 shadow-inner">
+              <Mail className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-black text-amber-100 mb-1">ইমেইল ঠিকানা নিশ্চিত করুন</h3>
+            <p className="text-xs text-amber-200/80 mb-4 px-2">
+              আপনি কি নিশ্চিত যে আপনার ইমেইল ঠিকানাটি সঠিক? ওটিপি কোড এই ঠিকানায় পাঠানো হবে:
+            </p>
+            <div className="bg-[#140b08] border border-amber-500/50 px-4 py-2.5 rounded-2xl font-mono text-amber-300 font-bold text-xs mb-4 w-full break-all shadow-inner">
+              📧 {email}
+            </div>
+            <div className="flex items-center gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => setShowEmailConfirm(false)}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-[#2b1b15] hover:bg-[#38231c] text-amber-300 font-bold text-xs transition-all border border-[#4d3227] cursor-pointer"
+              >
+                না, ঠিক করব
+              </button>
+              <button
+                type="button"
+                onClick={executeSendOtp}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs shadow-md transition-all cursor-pointer"
+              >
+                হ্যাঁ, ওটিপি পাঠান 🚀
+              </button>
+            </div>
+          </div>
+        )}
+
         {mode === 'register' ? (
           step === 'details' ? (
             <form onSubmit={handleSendOtp} className="flex flex-col gap-3 text-xs">
@@ -242,6 +298,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
                 <p className="text-xs text-amber-200">
                   Enter 6-digit OTP code sent to <strong className="text-amber-400 font-mono">{email}</strong>
                 </p>
+                <div className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-300">
+                  <span>কোটা ব্যবহার: <strong>{sessionStorage.getItem(`otp_count_${email.toLowerCase().trim()}`) || '1'}/2 বার</strong></span>
+                </div>
               </div>
 
               <div>
@@ -264,13 +323,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess, initia
                 {loading ? 'Verifying & Creating Account...' : 'Verify OTP & Complete Signup'}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setStep('details')}
-                className="text-amber-400 text-xs text-center mt-1 underline"
-              >
-                ← Back to Edit Details
-              </button>
+              <div className="flex items-center justify-between mt-1 pt-2 border-t border-[#3e281e]">
+                <button
+                  type="button"
+                  onClick={() => setStep('details')}
+                  className="text-amber-400 hover:text-amber-300 text-xs transition-all cursor-pointer"
+                >
+                  ← Edit Details
+                </button>
+                <button
+                  type="button"
+                  disabled={loading || Number(sessionStorage.getItem(`otp_count_${email.toLowerCase().trim()}`) || '0') >= 2}
+                  onClick={executeSendOtp}
+                  className="text-orange-400 hover:text-orange-300 text-xs font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {Number(sessionStorage.getItem(`otp_count_${email.toLowerCase().trim()}`) || '0') >= 2 ? 'কোটা লিমিট শেষ (2/2)' : '🔄 Resend OTP'}
+                </button>
+              </div>
             </form>
           )
         ) : (

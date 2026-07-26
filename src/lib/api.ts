@@ -9,28 +9,40 @@ export function getDeviceInfo(): { deviceId: string; deviceName: string } {
   }
 
   const ua = navigator.userAgent;
-  let deviceName = 'Browser Device';
+  let baseName = 'Browser Device';
 
   if (/android/i.test(ua)) {
-    deviceName = 'Android Device';
+    baseName = 'Android Device';
   } else if (/iPhone|iPad|iPod/i.test(ua)) {
-    deviceName = 'Apple iOS Device';
+    baseName = 'Apple iOS Device';
   } else if (/Macintosh/i.test(ua)) {
-    deviceName = 'Mac Workstation';
+    baseName = 'Mac Workstation';
   } else if (/Windows/i.test(ua)) {
-    deviceName = 'Windows PC';
+    baseName = 'Windows PC';
   } else if (/Linux/i.test(ua)) {
-    deviceName = 'Linux Workstation';
+    baseName = 'Linux Workstation';
   }
+
+  // Build a unique hardware fingerprint so different users on same platform have different deviceName,
+  // while the same device (e.g., Incognito or multiple profiles) shares the exact same fingerprint!
+  const screenRes = `${window.screen?.width || 0}x${window.screen?.height || 0}`;
+  const cores = navigator.hardwareConcurrency || 4;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const deviceName = `${baseName} [${screenRes}|${cores}c|${tz}]`;
 
   return { deviceId, deviceName };
 }
 
 export async function sendOtpApi(email: string) {
+  const { deviceId, deviceName } = getDeviceInfo();
   const res = await fetch('/api/auth/send-otp', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-device-id': deviceId,
+      'x-device-name': deviceName
+    },
+    body: JSON.stringify({ email, deviceId, deviceName }),
   });
   return res.json();
 }
@@ -52,10 +64,11 @@ export async function registerApi(data: {
 }
 
 export async function loginApi(email: string, password?: string) {
+  const { deviceId, deviceName } = getDeviceInfo();
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, deviceId, deviceName }),
   });
   return res.json();
 }

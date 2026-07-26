@@ -54,6 +54,13 @@ export const AdminView: React.FC = () => {
 
   const [message, setMessage] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(false);
+  const [otpStats, setOtpStats] = useState<{
+    todayDate: string;
+    todayCount: number;
+    totalCount: number;
+    brevoUsedToday?: number;
+    resendUsedToday?: number;
+  } | null>(null);
 
   useEffect(() => {
     loadAllData();
@@ -61,8 +68,17 @@ export const AdminView: React.FC = () => {
 
   const loadAllData = async () => {
     setLoadingData(true);
-    await Promise.all([loadSettings(), loadSubmissions(), loadWithdrawals(), loadUsers(), loadTasks()]);
+    await Promise.all([loadSettings(), loadSubmissions(), loadWithdrawals(), loadUsers(), loadTasks(), loadOtpStats()]);
     setLoadingData(false);
+  };
+
+  const loadOtpStats = async () => {
+    try {
+      const res = await fetch('/api/admin/otp-stats').then(r => r.json());
+      if (res.success) {
+        setOtpStats(res);
+      }
+    } catch (err) {}
   };
 
   const loadTasks = async () => {
@@ -370,6 +386,35 @@ export const AdminView: React.FC = () => {
           <span>API & SMTP</span>
         </button>
       </div>
+
+      {/* Daily OTP Sent Status Dashboard ("Daily koto otp patabo hoiyese Pannel a dekhabe") */}
+      {otpStats && (
+        <div className="bg-gradient-to-r from-[#2a1711] via-[#24130d] to-[#1e100b] p-3.5 rounded-2xl border border-amber-500/40 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold shrink-0 shadow-inner text-base">
+              ⚡
+            </div>
+            <div>
+              <div className="font-extrabold text-amber-100 flex items-center gap-2">
+                <span>আজকে পাঠানো মোট ওটিপি (OTP):</span>
+                <span className="text-amber-400 font-mono text-sm px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/30 font-black">
+                  {otpStats.todayCount} টি
+                </span>
+              </div>
+              <div className="text-[11px] text-amber-300/70 mt-0.5 flex flex-wrap items-center gap-2">
+                <span>সর্বমোট: <strong className="text-amber-200 font-mono">{otpStats.totalCount}</strong> টি</span>
+                <span>•</span>
+                <span>Brevo: <strong className="font-mono text-emerald-400">{otpStats.brevoUsedToday || 0}</strong></span>
+                <span>•</span>
+                <span>Resend: <strong className="font-mono text-orange-400">{otpStats.resendUsedToday || 0}</strong></span>
+              </div>
+            </div>
+          </div>
+          <div className="bg-[#140b08] px-3 py-1.5 rounded-xl border border-[#3e281e] text-[10px] text-amber-300/80 font-medium text-center shrink-0">
+            🛡️ ১ ইমেইলে সর্বোচ্চ ২ ওটিপি লিমিট সক্রিয়
+          </div>
+        </div>
+      )}
 
       {message && (
         <div className="bg-amber-500/20 border border-amber-500/50 text-amber-200 text-xs p-3 rounded-2xl flex items-center justify-between">
