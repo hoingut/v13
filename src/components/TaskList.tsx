@@ -148,7 +148,7 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
           <div className="relative shrink-0">
             <div className="absolute inset-0 bg-amber-400 rounded-full blur-md opacity-40 animate-pulse" />
             <img
-              src="/src/assets/images/nxb_golden_coin_1784869821261.jpg"
+              src="https://www.nxpost.online/assets/nxb_golden_coin_1784869821261-98Swi7wt.jpg"
               alt="Coins"
               className="relative w-14 h-14 rounded-2xl shadow-2xl border-2 border-amber-300/80 object-cover"
             />
