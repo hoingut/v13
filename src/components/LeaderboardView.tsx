@@ -85,7 +85,7 @@ export const LeaderboardView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <img src="/src/assets/images/nxb_golden_coin_1784869821261.jpg" alt="Coin" className="w-5 h-5 rounded-full" />
+                <img src="https://www.nxpost.online/assets/nxb_golden_coin_1784869821261-98Swi7wt.jpg" alt="Coin" className="w-5 h-5 rounded-full" />
                 <span className="font-mono font-black text-amber-300 text-sm">
                   {leader.balance ? leader.balance.toLocaleString('en-US', { maximumFractionDigits: 1 }) : '0.0'}
                 </span>
