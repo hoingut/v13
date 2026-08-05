@@ -262,8 +262,7 @@ export const TaskList: React.FC<TaskListProps> = ({ user, onUpdateUser, onOpenAu
       <div className="flex flex-col gap-3.5">
         {filteredTasks.length === 0 ? (
           <div className="bg-[#1f130f] p-8 rounded-3xl border border-[#3b2820] text-center text-xs text-amber-300/60 font-bold">
-            কোনো টাস্ক অবশিষ্ট নেই! আপনি সব টাস্ক সম্পন্ন করেছেন অথবা নতুন টাস্কের জন্য অপেক্ষা করুন।
-          </div>
+       এই মুহুর্তে কোনো টাস্ক নেই, শিগগিরই আরও দেওয়া হবে, আমি অপেক্ষা না করে রেফার করে টাকা ইনকাম করুন, অথবা ট্যাপ করে মাইনিং করুন!   </div>
         ) : (
           filteredTasks.map(task => {
           const status = getTaskStatus(task.id);
